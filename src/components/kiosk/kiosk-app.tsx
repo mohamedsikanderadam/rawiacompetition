@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Scoreboard } from "@/lib/battle";
 import type { KioskState } from "@/lib/kiosk";
-import { BattleMeter, Confetti, LeaderLine, SIDE_CLASSES, ScorePair, sideOf, type Side } from "@/components/battle/scoreboard";
+import { BattleMeter, Brand, Confetti, LeaderLine, PourAnimation, SIDE_CLASSES, ScorePair, sideOf, type Side } from "@/components/battle/scoreboard";
 import { KioskSetup } from "./kiosk-setup";
 
 type Screen =
@@ -16,10 +16,6 @@ type Screen =
   | { kind: "failed"; title: string; message: string }
   | { kind: "closed" };
 
-const TAGLINES: Record<Side, string[]> = {
-  a: ["YOU JUST MOVED THE SCOREBOARD.", "SHARJAH STANDS UP.", "UOS IS NOT BACKING DOWN.", "ANOTHER ONE FOR THE UNIVERSITY OF SHARJAH."],
-  b: ["AUS IS COMING FOR THE LEAD.", "THE AMERICANS HAVE ENTERED THE CHAT.", "AUS KEEPS THE PRESSURE ON.", "ANOTHER ONE FOR AUS."],
-};
 
 const STATE_REFRESH_MS = 15_000;
 const FAILED_SCREEN_MS = 4_000;
@@ -185,7 +181,7 @@ export function KioskApp() {
 
       if (!res) {
         setOnline(false);
-        setScreen({ kind: "failed", title: "VOTE NOT RECORDED", message: "Connection lost. Please tap again once the kiosk is back online." });
+        setScreen({ kind: "failed", title: "Vote not recorded", message: "Connection lost. Please tap again once the kiosk is back online." });
         setTimeout(() => void resetToVote(), FAILED_SCREEN_MS);
         return;
       }
@@ -210,7 +206,7 @@ export function KioskApp() {
         }
         setScreen({
           kind: "failed",
-          title: json.code === "too_fast" ? "DOUBLE TAP IGNORED" : "VOTE NOT RECORDED",
+          title: json.code === "too_fast" ? "Double tap ignored" : "Vote not recorded",
           message: json.code === "too_fast" ? "Only one vote per purchase was counted." : json.message,
         });
         setTimeout(() => void resetToVote(), json.code === "too_fast" ? 2000 : FAILED_SCREEN_MS);
@@ -225,17 +221,19 @@ export function KioskApp() {
     [state, resetToVote],
   );
 
+
   return (
-    <main className="kiosk bg-arena fixed inset-0 flex flex-col overflow-hidden text-cream">
+    <main className="kiosk bg-arena fixed inset-0 flex flex-col overflow-hidden text-ink">
       {!online && (
-        <div className="absolute inset-x-0 top-0 z-50 bg-red-600 px-4 py-2 text-center font-display text-sm md:text-base tracking-wide">
-          OFFLINE — VOTES CANNOT BE RECORDED UNTIL THE CONNECTION RETURNS
+        <div className="absolute inset-x-0 top-0 z-50 bg-brick px-4 py-2 text-center font-display text-sm tracking-wide text-apricot md:text-base">
+          Offline — votes cannot be recorded until the connection returns
         </div>
       )}
 
       {screen.kind === "loading" && (
-        <div className="flex flex-1 items-center justify-center">
-          <p className="font-display text-3xl animate-pulse-slow">LOADING THE BATTLE…</p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-6">
+          <Brand className="animate-wiggle" />
+          <p className="eyebrow text-ink-soft animate-pulse-slow">Brewing the battle…</p>
         </div>
       )}
 
@@ -250,37 +248,59 @@ export function KioskApp() {
       {screen.kind === "attract" && state && (
         <button
           type="button"
-          className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 md:gap-10 bg-background/95 backdrop-blur-sm px-6 text-center"
+          className="bg-arena absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 px-6 text-center md:gap-8"
           onPointerDown={(e) => {
             e.preventDefault();
             setScreen({ kind: "vote" });
           }}
         >
-          <div className="font-display text-5xl md:text-8xl leading-none animate-float">
-            🔥 <span className="text-uos">{state.campaign.a.code}</span> <span className="text-gold">vs</span>{" "}
-            <span className="text-aus">{state.campaign.b.code}</span> 🔥
+          <Brand className="animate-wiggle !h-16 md:!h-24" />
+          <p className="eyebrow text-brick">Rawia Cafe presents</p>
+          <div className="font-display text-6xl leading-none md:text-9xl">
+            <span className="text-side-a">{state.campaign.a.code}</span> <span className="text-ink-soft">vs</span> <span className="text-side-b">{state.campaign.b.code}</span>
           </div>
-          <h2 className="font-display text-3xl md:text-6xl">WHICH UNIVERSITY RUNS RAWIA?</h2>
-          <p className="font-display text-2xl md:text-4xl text-gold animate-pulse-slow">TAP TO REPRESENT YOUR UNIVERSITY</p>
+          <h2 className="font-display text-3xl md:text-5xl">
+            {state.campaign.headline} <span className="text-brick">{state.campaign.headlineAccent}</span>
+          </h2>
+          <p className="rounded-full bg-ink px-6 py-3 font-display text-lg text-apricot animate-float md:text-2xl">Tap anywhere to cast your vote</p>
           {state.settings.showScoresOnVote && (
             <div className="w-full max-w-3xl">
               <BattleMeter board={state.scoreboard} size="sm" />
             </div>
           )}
-          <p className="absolute bottom-6 text-sm md:text-lg uppercase tracking-[0.3em] text-cream/60">{state.countdown}</p>
+          <p className="eyebrow absolute bottom-6 text-ink-soft">{state.countdown}</p>
         </button>
       )}
 
       {screen.kind === "confirmed" && state && <ConfirmedScreen state={state} side={screen.side} board={screen.board} />}
 
       {screen.kind === "failed" && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-background px-8 text-center animate-shake">
-          <div className="text-7xl md:text-9xl">⚠️</div>
-          <h2 className="font-display text-4xl md:text-7xl text-red-400">{screen.title}</h2>
-          <p className="max-w-2xl text-xl md:text-3xl text-cream/80">{screen.message}</p>
+        <div className="bg-arena absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 px-8 text-center animate-shake">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-brick text-apricot md:h-32 md:w-32">
+            <svg viewBox="0 0 24 24" className="h-14 w-14 md:h-20 md:w-20" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+              <path d="M12 6v8M12 18h.01" />
+            </svg>
+          </div>
+          <p className="eyebrow text-brick">Not counted</p>
+          <h2 className="font-display text-4xl text-ink md:text-7xl">{screen.title}</h2>
+          <p className="max-w-2xl text-xl text-ink-soft md:text-3xl">{screen.message}</p>
         </div>
       )}
     </main>
+  );
+}
+
+function KioskHeader({ state }: { state: KioskState }) {
+  const urgency = state.status.urgency === "normal" ? "text-ink-soft" : state.status.urgency === "final-week" ? "text-olive" : "text-brick animate-pulse-slow";
+  return (
+    <header className="flex items-start justify-between">
+      <Brand />
+      <div className="eyebrow text-right leading-relaxed text-ink-soft">
+        <div>Tap once. Make it count.</div>
+        <div className={urgency}>{state.countdown}</div>
+        <div className="opacity-70">Station {state.device.identifier.toUpperCase()}</div>
+      </div>
+    </header>
   );
 }
 
@@ -288,34 +308,37 @@ function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: Si
   const { scoreboard: board, settings, campaign } = state;
   const showScores = settings.showScoresOnVote;
   const disabled = pending !== null;
-  const urgencyClass = state.status.urgency === "normal" ? "text-cream/70" : state.status.urgency === "final-week" ? "text-gold" : "text-red-400 animate-pulse-slow";
 
   return (
-    <div className="flex flex-1 flex-col px-4 py-4 md:px-10 md:py-8">
-      <header className="flex items-center justify-between text-xs md:text-lg uppercase tracking-[0.3em] text-cream/60">
-        <span>Rawia Cafe</span>
-        <span className={`font-display ${urgencyClass}`}>{state.countdown}</span>
-      </header>
+    <div className="flex flex-1 flex-col px-5 py-5 md:px-12 md:py-8">
+      <KioskHeader state={state} />
 
-      <div className="mt-3 text-center md:mt-6">
-        <h1 className="font-display text-3xl md:text-6xl leading-tight">🔥 THE RAWIA UNIVERSITY BATTLE</h1>
-        <h2 className="mt-2 font-display text-2xl md:text-5xl text-gold">WHO ARE YOU REPRESENTING?</h2>
+      <div className="mt-6 md:mt-10">
+        <p className="eyebrow text-brick">Rawia Cafe presents</p>
+        <h1 className="mt-2 font-display text-5xl leading-[0.95] md:text-8xl">
+          {campaign.headline}
+          <br />
+          <span className="text-brick">{campaign.headlineAccent}</span>
+        </h1>
+        <p className="mt-4 max-w-2xl text-lg text-ink-soft md:text-2xl">{campaign.subline}</p>
       </div>
 
-      <div className="mt-4 grid flex-1 grid-cols-1 gap-4 md:mt-8 md:grid-cols-[1fr_auto_1fr] md:gap-8 items-stretch">
+      <div className="mt-6 grid flex-1 grid-cols-1 gap-4 md:mt-10 md:grid-cols-2 md:gap-6">
         <VoteButton side="a" code={campaign.a.code} name={campaign.a.name} votes={showScores ? board.a.votes : null} pending={pending} disabled={disabled} onVote={onVote} />
-        <div className="flex items-center justify-center font-display text-5xl md:text-8xl italic text-gold animate-glow">VS</div>
         <VoteButton side="b" code={campaign.b.code} name={campaign.b.name} votes={showScores ? board.b.votes : null} pending={pending} disabled={disabled} onVote={onVote} />
       </div>
 
-      <footer className="mt-4 md:mt-8 space-y-3 md:space-y-4">
-        {showScores && (
-          <>
-            <LeaderLine board={board} className="text-center text-2xl md:text-4xl" />
-            <BattleMeter board={board} />
-          </>
+      <footer className="mt-5 flex flex-col gap-3 md:mt-8 md:flex-row md:items-end md:justify-between">
+        {showScores ? (
+          <div className="w-full md:max-w-xl">
+            <BattleMeter board={board} size="sm" />
+          </div>
+        ) : (
+          <span />
         )}
-        <p className="text-center text-base md:text-2xl text-cream/70">Every purchase counts. Every vote moves the scoreboard.</p>
+        <div className="eyebrow text-ink-soft">
+          {showScores ? <LeaderLine board={board} className="font-mono font-medium normal-case tracking-normal" /> : "Every purchase counts."}
+        </div>
       </footer>
     </div>
   );
@@ -346,12 +369,20 @@ function VoteButton({
       disabled={disabled}
       aria-label={`Vote ${code} — ${name}`}
       onClick={() => onVote(side)}
-      className={`relative flex min-h-[28vh] md:min-h-[40vh] flex-col items-center justify-center rounded-3xl bg-gradient-to-br ${c.from} ${c.to} p-6 text-center shadow-2xl ${c.shadow} ring-4 ring-white/10 transition-transform duration-150 active:scale-[0.97] disabled:opacity-70 ${isPending ? "animate-pulse-slow" : ""}`}
+      className={`relative flex min-h-[26vh] flex-col justify-between rounded-[2rem] ${c.bg} p-6 text-left text-apricot shadow-2xl ${c.shadow} transition-transform duration-150 active:scale-[0.97] disabled:opacity-80 md:min-h-[38vh] md:p-9 ${isPending ? "animate-pulse-slow" : ""}`}
     >
-      <span className="font-display text-7xl md:text-[10rem] leading-none text-white drop-shadow-lg">{code}</span>
-      <span className="mt-3 font-display text-xl md:text-3xl uppercase text-white/90">{name}</span>
-      {votes !== null && <span className="mt-4 font-display text-4xl md:text-6xl tabular text-white">{votes.toLocaleString("en-US")}</span>}
-      {isPending && <span className="absolute bottom-4 text-sm md:text-lg uppercase tracking-widest text-white/80">Recording…</span>}
+      <div className="flex items-start justify-between">
+        <span className="eyebrow opacity-80">{side === "a" ? "Contestant 01" : "Contestant 02"}</span>
+        {votes !== null && <span className="font-display text-2xl tabular md:text-4xl">{votes.toLocaleString("en-US")}</span>}
+      </div>
+      <div>
+        <span className="block font-display text-7xl leading-none md:text-[9rem]">{code}</span>
+        <span className="mt-3 block text-lg font-medium opacity-90 md:text-2xl">{name}</span>
+      </div>
+      <span className="eyebrow mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-apricot/15 px-4 py-2">
+        {isPending ? "Recording…" : `Tap to vote ${code}`}
+        {!isPending && <span aria-hidden>→</span>}
+      </span>
     </button>
   );
 }
@@ -359,63 +390,83 @@ function VoteButton({
 function ConfirmedScreen({ state, side, board }: { state: KioskState; side: Side; board: Scoreboard }) {
   const c = SIDE_CLASSES[side];
   const code = side === "a" ? board.a.code : board.b.code;
-  const tagline = TAGLINES[side][board.total % TAGLINES[side].length];
   const showScore = state.settings.showConfirmationScore;
+  const leaderSide = sideOf(board, board.leader);
   return (
-    <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 md:gap-10 bg-background px-6 text-center">
+    <div className="bg-arena absolute inset-0 z-40 flex flex-col overflow-hidden px-5 py-5 md:px-12 md:py-8">
       <Confetti side={side} />
-      <div className={`font-display text-8xl md:text-[12rem] leading-none ${c.text} animate-pop`}>+1 {code} 🔥</div>
-      {showScore ? (
-        <>
-          <h2 className="font-display text-2xl md:text-5xl animate-rise">{tagline}</h2>
-          <div className="w-full max-w-5xl animate-rise" style={{ animationDelay: "0.2s" }}>
-            <ScorePair board={board} />
+      <KioskHeader state={state} />
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center md:gap-4">
+        <PourAnimation side={side} />
+        <p className="eyebrow text-olive animate-rise">Counted</p>
+        <h2 className="font-display text-4xl leading-[0.95] md:text-7xl animate-rise" style={{ animationDelay: "0.1s" }}>
+          Your voice is in.
+        </h2>
+        <p className="max-w-xl text-base text-ink-soft md:text-xl animate-rise" style={{ animationDelay: "0.2s" }}>
+          One tap for <span className={`font-bold ${c.text}`}>{code}</span>. Thank you for backing your side at Rawia.
+        </p>
+        {showScore && (
+          <div className="mt-1 w-full max-w-3xl animate-rise" style={{ animationDelay: "0.35s" }}>
+            <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-ink/10 bg-white/50 p-4 text-left md:p-5">
+              <div>
+                <p className="eyebrow text-ink-soft">Current leader</p>
+                <p className={`mt-1 font-display text-2xl md:text-4xl ${leaderSide ? SIDE_CLASSES[leaderSide].text : "text-ink"}`}>
+                  {board.leader ?? (board.total ? "Tied" : "—")}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="eyebrow text-ink-soft">Tally</p>
+                <p className="mt-1 font-display text-2xl tabular md:text-4xl">
+                  <span className="text-side-a">{board.a.votes.toLocaleString("en-US")}</span>
+                  <span className="text-ink-soft"> · </span>
+                  <span className="text-side-b">{board.b.votes.toLocaleString("en-US")}</span>
+                </p>
+              </div>
+              <div className="col-span-2">
+                <BattleMeter board={board} size="sm" />
+              </div>
+            </div>
           </div>
-          <div className="w-full max-w-4xl animate-rise" style={{ animationDelay: "0.4s" }}>
-            <LeaderLine board={board} className="mb-3 text-center text-2xl md:text-4xl" />
-            <BattleMeter board={board} />
-          </div>
-        </>
-      ) : (
-        <h2 className="font-display text-4xl md:text-7xl animate-rise">YOUR VOTE IS IN 🔥</h2>
-      )}
+        )}
+      </div>
+      <p className="eyebrow text-center text-ink-soft">Ready for the next voice</p>
     </div>
   );
 }
 
 function ClosedScreen({ state }: { state: KioskState }) {
   const { status, scoreboard: board, winner, campaign } = state;
-  if (status.phase === "ended" && winner) {
-    const winnerSide = "tie" in winner ? null : sideOf(board, winner.code);
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-6 md:gap-10 px-6 text-center">
-        <h1 className="font-display text-4xl md:text-7xl">🏆 THE BATTLE IS OVER</h1>
-        {"tie" in winner ? (
-          <h2 className="font-display text-3xl md:text-6xl text-gold">THE BATTLE ENDS IN A TIE 🤝</h2>
-        ) : (
-          <h2 className={`font-display text-3xl md:text-6xl ${winnerSide ? SIDE_CLASSES[winnerSide].text : ""}`}>{winner.name.toUpperCase()} WINS!</h2>
-        )}
-        <div className="w-full max-w-5xl">
-          <ScorePair board={board} />
-        </div>
-        {!("tie" in winner) && (
-          <p className="font-display text-2xl md:text-4xl">
-            {winner.code} WINS BY {winner.margin.toLocaleString("en-US")} {winner.margin === 1 ? "PURCHASE" : "PURCHASES"} 🔥
-          </p>
-        )}
-        <div className="w-full max-w-4xl">
-          <BattleMeter board={board} />
-        </div>
-      </div>
-    );
-  }
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      <h1 className="font-display text-4xl md:text-7xl">🔥 {campaign.name.toUpperCase()}</h1>
-      <h2 className="font-display text-2xl md:text-5xl text-gold">{status.phase === "upcoming" ? "COMING SOON" : "VOTING IS PAUSED"}</h2>
-      <p className="text-lg md:text-2xl text-cream/70">
-        {status.phase === "upcoming" ? "The battle has not started yet." : "Please ask a member of the Rawia team."}
-      </p>
+    <div className="flex flex-1 flex-col px-5 py-5 md:px-12 md:py-8">
+      <KioskHeader state={state} />
+      {status.phase === "ended" && winner ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center md:gap-8">
+          <p className="eyebrow text-brick animate-rise">The battle is over</p>
+          {"tie" in winner ? (
+            <h1 className="font-display text-5xl md:text-8xl animate-pop">It ends in a tie.</h1>
+          ) : (
+            <h1 className={`font-display text-5xl md:text-8xl animate-pop ${SIDE_CLASSES[sideOf(board, winner.code) ?? "a"].text}`}>{winner.name} wins.</h1>
+          )}
+          <div className="w-full max-w-4xl">
+            <ScorePair board={board} />
+          </div>
+          {!("tie" in winner) && (
+            <p className="text-xl text-ink-soft md:text-3xl">
+              {winner.code} wins by {winner.margin.toLocaleString("en-US")} {winner.margin === 1 ? "vote" : "votes"}.
+            </p>
+          )}
+          <div className="w-full max-w-3xl">
+            <BattleMeter board={board} />
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col items-center justify-center gap-5 text-center">
+          <p className="eyebrow text-brick">Rawia Cafe presents</p>
+          <h1 className="font-display text-5xl md:text-8xl">{campaign.name}</h1>
+          <h2 className="font-display text-2xl text-ink-soft md:text-4xl">{status.phase === "upcoming" ? "Coming soon." : "Voting is paused."}</h2>
+          <p className="text-lg text-ink-soft md:text-2xl">{status.phase === "upcoming" ? "The battle has not started yet." : "Please ask a member of the Rawia team."}</p>
+        </div>
+      )}
     </div>
   );
 }

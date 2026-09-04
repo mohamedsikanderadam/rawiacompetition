@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { clearSessionCookie, getAdminSession, requireAdmin, setSessionCookie, verifyCredentials } from "@/lib/auth";
 import { getCampaign } from "@/lib/campaign";
-import { resetDemoData, startLiveCampaign } from "@/lib/demo";
+import { resetDemoData, resetScores, startLiveCampaign } from "@/lib/demo";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { generateDeviceToken, hashToken, invalidateVote, restoreVote } from "@/lib/votes";
 
@@ -137,6 +137,9 @@ const settingsSchema = z
     universityAName: z.string().trim().min(1).max(120),
     universityBCode: z.string().trim().min(1).max(12).transform((s) => s.toUpperCase()),
     universityBName: z.string().trim().min(1).max(120),
+    headline: z.string().trim().min(1).max(60),
+    headlineAccent: z.string().trim().min(1).max(60),
+    subline: z.string().trim().min(1).max(160),
     confirmationDurationMs: z.coerce.number().int().min(1000).max(10000),
     attractTimeoutMs: z.coerce.number().int().min(10000).max(600000),
     showScoresOnVote: z.coerce.boolean(),
@@ -146,7 +149,7 @@ const settingsSchema = z
     reopened: z.coerce.boolean(),
   })
   .refine((s) => s.startDate <= s.endDate, { message: "End date must be on or after the start date." })
-  .refine((s) => s.universityACode !== s.universityBCode, { message: "University codes must differ." });
+  .refine((s) => s.universityACode !== s.universityBCode, { message: "Contestant codes must differ." });
 
 function checkbox(formData: FormData, key: string): "true" | "" {
   return formData.get(key) === "on" ? "true" : "";
@@ -188,6 +191,15 @@ export async function resetDemoDataAction(): Promise<void> {
   if (!device) throw new Error("Create a device before loading demo data.");
   const t = await resetDemoData(campaign, device);
   await audit(admin, "campaign.demo_data_reset", { details: t });
+  revalidateAdmin();
+}
+
+export async function resetScoresAction(formData: FormData): Promise<void> {
+  const admin = await requireAdmin();
+  if (String(formData.get("confirm") ?? "").trim().toUpperCase() !== "RESET") return;
+  const campaign = await getCampaign();
+  const result = await resetScores(campaign);
+  await audit(admin, "campaign.scores_reset", { details: result });
   revalidateAdmin();
 }
 

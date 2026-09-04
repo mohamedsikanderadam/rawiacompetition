@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { KioskApp } from "@/components/kiosk/kiosk-app";
 
 export const metadata: Metadata = {
-  title: "Rawia University Battle — Vote",
+  title: "Rawia Battle — Vote",
 };
 
 export const dynamic = "force-dynamic";

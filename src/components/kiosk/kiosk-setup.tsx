@@ -36,9 +36,9 @@ export function KioskSetup({ message, onRegistered }: { message?: string; onRegi
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
-      <p className="text-xs uppercase tracking-[0.3em] text-cream/50">Rawia staff only</p>
-      <h1 className="font-display text-3xl md:text-5xl">KIOSK NOT AUTHORISED</h1>
-      <p className="max-w-xl text-cream/70">{message ?? "Enter this kiosk's device token to enable voting on this screen."}</p>
+      <p className="eyebrow text-ink-soft">Rawia staff only</p>
+      <h1 className="font-display text-3xl md:text-5xl text-ink">Kiosk not authorised</h1>
+      <p className="max-w-xl text-ink-soft">{message ?? "Enter this kiosk's device token to enable voting on this screen."}</p>
       <form onSubmit={submit} className="flex w-full max-w-xl flex-col gap-3">
         <input
           value={token}
@@ -46,17 +46,17 @@ export function KioskSetup({ message, onRegistered }: { message?: string; onRegi
           autoComplete="off"
           spellCheck={false}
           placeholder="rk_…"
-          className="rounded-xl border border-white/15 bg-white/5 px-4 py-4 text-center text-lg text-cream outline-none focus:border-gold select-text"
+          className="rounded-xl border-2 border-ink/15 bg-white/60 px-4 py-4 text-center font-mono text-lg text-ink outline-none focus:border-brick select-text"
           style={{ userSelect: "text", WebkitUserSelect: "text" }}
         />
         <button
           type="submit"
           disabled={busy || token.trim().length < 16}
-          className="rounded-xl bg-gold px-6 py-4 font-display text-lg text-background disabled:opacity-50"
+          className="rounded-xl bg-brick px-6 py-4 font-display text-lg text-apricot disabled:opacity-50"
         >
           {busy ? "Checking…" : "Authorise this kiosk"}
         </button>
-        {error && <p className="text-red-400">{error}</p>}
+        {error && <p className="text-brick">{error}</p>}
       </form>
     </div>
   );
