@@ -4,7 +4,8 @@ import { countdownLabel, determineWinner, getCampaignStatus } from "@/lib/battle
 import { getCampaign, getScoreboard } from "@/lib/campaign";
 import { formatYmdLong } from "@/lib/time";
 import { Card, Stat, buttonClass, buttonDangerClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
-import { BattleMeter, contestantColor } from "@/components/battle/scoreboard";
+import { BattleMeter } from "@/components/battle/scoreboard";
+import { contestantColor } from "@/lib/contestants";
 import { demoTargetFor } from "@/lib/demo";
 import { resetDemoDataAction, resetScoresAction, startLiveCampaignAction } from "../actions";
 
