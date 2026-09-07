@@ -1,12 +1,13 @@
-# Rawia Battle — onsite two-way vote kiosk
+# Rawia Battle — onsite vote kiosk
 
 Onsite kiosk polling app for **Rawia Cafe**. Customers buy, tap their side on a Rawia-controlled
 tablet, see a 2–3 second celebration (the Rawia jug pours a cup), and the screen resets for the next
 customer. Management gets a secure dashboard with every vote as an individual, auditable record.
 
-First campaign: **UOS vs AUS** (September 2026). Any two contestants work — the names, short codes,
-headline and subline are all editable in **Admin → Settings**, so the same app can run
-*Nissan Patrol vs Land Cruiser* next season.
+First campaign: **UOS vs AUS** (September 2026). Any **2–6 contestants** work — add, remove, reorder
+and rename them (short code + full name) in **Admin → Settings**, together with the headline and
+subline, so the same app can run a six-university battle or *Nissan Patrol vs Land Cruiser* next season.
+Kiosk cards, the leaderboard, analytics, exports and the reset all follow the configured list.
 
 Styling follows the Rawia brand guide: Light Apricot `#f5f0e8` canvas with a fine grid, Brick Red
 `#b63a2b` / Dark Coffee `#311f15` contestant cards, Dusty Olive `#6e7a3a` accents, Open Sans type and
@@ -24,7 +25,7 @@ the untouched vector logo (`public/rawia-*.svg`).
 | `/admin/votes` | Management | Every vote; filter by university / date / time / device; invalidate or restore. |
 | `/admin/analytics` | Management | By day, by hour, cumulative, by device, daily trend table. |
 | `/admin/devices` | Management | Register kiosks, generate/rotate tokens, deactivate. |
-| `/admin/settings` | Management | Campaign name/dates, the two contestants, headline copy, score visibility, attract screen, pause/reopen. |
+| `/admin/settings` | Management | Campaign name/dates, contestants (2–6, add/remove/reorder), headline copy, score visibility, attract screen, pause/reopen. |
 | `/admin/audit` | Management | Immutable log of admin actions. |
 
 API: `POST /api/vote` (kiosk only), `GET /api/kiosk/state` (kiosk only), `POST /api/kiosk/register`,

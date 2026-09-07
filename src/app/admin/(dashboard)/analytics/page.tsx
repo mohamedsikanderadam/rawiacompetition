@@ -1,17 +1,19 @@
-import { getAnalytics } from "@/lib/analytics";
-import { getCampaignStatus } from "@/lib/battle";
+import { getAnalytics, leaderOf } from "@/lib/analytics";
+import { getCampaignStatus, type Totals } from "@/lib/battle";
 import { getCampaign, getScoreboard } from "@/lib/campaign";
 import { Card, Stat, Table } from "@/components/admin/ui";
+import { contestantColor } from "@/components/battle/scoreboard";
 
 export default async function AnalyticsPage() {
   const campaign = await getCampaign();
   const [board, a] = await Promise.all([getScoreboard(campaign), getAnalytics(campaign)]);
   const status = getCampaignStatus(campaign);
+  const codes = a.contestants.map((c) => c.code);
+  const color = (i: number) => contestantColor(i, "dark");
   const maxDay = Math.max(1, ...a.byDay.map((d) => d.total));
   const maxHour = Math.max(1, ...a.byHour.map((h) => h.total));
-  const maxCum = Math.max(1, ...a.byDay.map((d) => Math.max(d.cumulativeA, d.cumulativeB)));
-  const A = campaign.universityACode;
-  const B = campaign.universityBCode;
+  const maxCum = Math.max(1, ...a.byDay.flatMap((d) => codes.map((c) => d.cumulative[c] ?? 0)));
+  const breakdown = (counts: Totals) => codes.map((c) => `${c} ${counts[c] ?? 0}`).join(" · ");
 
   return (
     <div className="space-y-8">
@@ -22,11 +24,12 @@ export default async function AnalyticsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Total votes" value={board.total.toLocaleString()} />
-        <Stat label={`${A} votes`} value={board.a.votes.toLocaleString()} hint={`${board.a.pct}%`} tone="a" />
-        <Stat label={`${B} votes`} value={board.b.votes.toLocaleString()} hint={`${board.b.pct}%`} tone="b" />
-        <Stat label="Current leader" value={board.leader ?? (board.total ? "TIE" : "—")} hint={`difference: ${board.lead}`} tone="gold" />
-        <Stat label="Votes today" value={a.today.total} hint={`${A} ${a.today.a} · ${B} ${a.today.b}`} />
-        <Stat label="Votes yesterday" value={a.yesterday.total} hint={`${A} ${a.yesterday.a} · ${B} ${a.yesterday.b}`} />
+        {board.entries.map((e, i) => (
+          <Stat key={e.code} label={`${e.code} votes`} value={e.votes.toLocaleString()} hint={`${e.pct}%`} color={color(i)} />
+        ))}
+        <Stat label="Current leader" value={board.leader ?? (board.total ? "TIE" : "—")} hint={`lead over 2nd: ${board.lead}`} tone="gold" />
+        <Stat label="Votes today" value={a.today.total} hint={breakdown(a.today.counts)} />
+        <Stat label="Votes yesterday" value={a.yesterday.total} hint={breakdown(a.yesterday.counts)} />
         <Stat label="Average votes / day" value={a.averagePerDay} hint={`${a.daysElapsed} days elapsed · ${status.daysLeft} left`} />
         <Stat label="Highest participation day" value={a.peakDay?.total ?? "—"} hint={a.peakDay?.day} />
       </div>
@@ -34,10 +37,11 @@ export default async function AnalyticsPage() {
       <Card title="Votes by day">
         <div className="flex h-56 items-end gap-1">
           {a.byDay.map((d) => (
-            <div key={d.day} className="relative flex h-full flex-1 items-end" title={`${d.day}: ${A} ${d.a} · ${B} ${d.b}`}>
+            <div key={d.day} className="relative flex h-full flex-1 items-end" title={`${d.day}: ${breakdown(d.counts)}`}>
               <div className="flex w-full flex-col-reverse overflow-hidden rounded-t-sm" style={{ height: `${(d.total / maxDay) * 100}%` }}>
-                <div className="bg-uos" style={{ flex: d.a }} />
-                <div className="bg-aus" style={{ flex: d.b }} />
+                {codes.map((c, i) => (
+                  <div key={c} style={{ flex: d.counts[c] ?? 0, background: color(i) }} />
+                ))}
               </div>
             </div>
           ))}
@@ -52,10 +56,11 @@ export default async function AnalyticsPage() {
         <Card title="Votes by hour of day">
           <div className="flex h-48 items-end gap-1">
             {a.byHour.map((h) => (
-              <div key={h.hour} className="flex h-full flex-1 items-end" title={`${String(h.hour).padStart(2, "0")}:00 — ${A} ${h.a} · ${B} ${h.b}`}>
+              <div key={h.hour} className="flex h-full flex-1 items-end" title={`${String(h.hour).padStart(2, "0")}:00 — ${breakdown(h.counts)}`}>
                 <div className="flex w-full flex-col-reverse overflow-hidden rounded-t-sm" style={{ height: `${(h.total / maxHour) * 100}%` }}>
-                  <div className="bg-uos" style={{ flex: h.a }} />
-                  <div className="bg-aus" style={{ flex: h.b }} />
+                  {codes.map((c, i) => (
+                    <div key={c} style={{ flex: h.counts[c] ?? 0, background: color(i) }} />
+                  ))}
                 </div>
               </div>
             ))}
@@ -69,44 +74,36 @@ export default async function AnalyticsPage() {
 
         <Card title="Cumulative votes">
           <svg viewBox="0 0 400 180" className="h-48 w-full" preserveAspectRatio="none" role="img" aria-label="Cumulative votes over the campaign">
-            {(["cumulativeA", "cumulativeB"] as const).map((key) => {
-              const pts = a.byDay.map((d, i) => {
-                const x = a.byDay.length === 1 ? 0 : (i / (a.byDay.length - 1)) * 400;
-                const y = 176 - (d[key] / maxCum) * 170;
+            {codes.map((c, i) => {
+              const pts = a.byDay.map((d, j) => {
+                const x = a.byDay.length === 1 ? 0 : (j / (a.byDay.length - 1)) * 400;
+                const y = 176 - ((d.cumulative[c] ?? 0) / maxCum) * 170;
                 return `${x.toFixed(1)},${y.toFixed(1)}`;
               });
-              return (
-                <polyline
-                  key={key}
-                  points={pts.join(" ")}
-                  fill="none"
-                  stroke={key === "cumulativeA" ? "var(--uos)" : "var(--aus)"}
-                  strokeWidth="3"
-                  vectorEffect="non-scaling-stroke"
-                  strokeLinejoin="round"
-                />
-              );
+              return <polyline key={c} points={pts.join(" ")} fill="none" stroke={color(i)} strokeWidth="3" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />;
             })}
           </svg>
-          <div className="mt-2 flex gap-4 text-xs">
-            <span className="text-uos">
-              ● {A} {board.a.votes}
-            </span>
-            <span className="text-aus">
-              ● {B} {board.b.votes}
-            </span>
+          <div className="mt-2 flex flex-wrap gap-4 text-xs">
+            {board.entries.map((e, i) => (
+              <span key={e.code} style={{ color: color(i) }}>
+                ● {e.code} {e.votes}
+              </span>
+            ))}
           </div>
         </Card>
       </div>
 
       <Card title="Votes by device">
-        <Table head={["Device", "Identifier", A, B, "Total", "Status"]}>
+        <Table head={["Device", "Identifier", ...codes, "Total", "Status"]}>
           {a.byDevice.map((d) => (
             <tr key={d.deviceId}>
               <td className="px-4 py-3">{d.deviceName}</td>
               <td className="px-4 py-3 font-mono text-xs">{d.deviceIdentifier}</td>
-              <td className="px-4 py-3 text-uos tabular">{d.a}</td>
-              <td className="px-4 py-3 text-aus tabular">{d.b}</td>
+              {codes.map((c, i) => (
+                <td key={c} className="px-4 py-3 tabular" style={{ color: color(i) }}>
+                  {d.counts[c] ?? 0}
+                </td>
+              ))}
               <td className="px-4 py-3 tabular">{d.total}</td>
               <td className="px-4 py-3">{d.active ? "Active" : "Inactive"}</td>
             </tr>
@@ -115,16 +112,22 @@ export default async function AnalyticsPage() {
       </Card>
 
       <Card title="Daily trend">
-        <Table head={["Date", A, B, "Total", `Cumulative ${A}`, `Cumulative ${B}`, "Leader"]}>
+        <Table head={["Date", ...codes, "Total", ...codes.map((c) => `Cumulative ${c}`), "Leader"]}>
           {[...a.byDay].reverse().map((d) => (
             <tr key={d.day}>
               <td className="px-4 py-2 font-mono text-xs">{d.day}</td>
-              <td className="px-4 py-2 text-uos tabular">{d.a}</td>
-              <td className="px-4 py-2 text-aus tabular">{d.b}</td>
+              {codes.map((c, i) => (
+                <td key={c} className="px-4 py-2 tabular" style={{ color: color(i) }}>
+                  {d.counts[c] ?? 0}
+                </td>
+              ))}
               <td className="px-4 py-2 tabular">{d.total}</td>
-              <td className="px-4 py-2 tabular">{d.cumulativeA}</td>
-              <td className="px-4 py-2 tabular">{d.cumulativeB}</td>
-              <td className="px-4 py-2">{d.a === d.b ? (d.total ? "Tie" : "—") : d.a > d.b ? A : B}</td>
+              {codes.map((c) => (
+                <td key={`cum-${c}`} className="px-4 py-2 tabular">
+                  {d.cumulative[c] ?? 0}
+                </td>
+              ))}
+              <td className="px-4 py-2">{leaderOf(d.counts) ?? (d.total ? "Tie" : "—")}</td>
             </tr>
           ))}
         </Table>

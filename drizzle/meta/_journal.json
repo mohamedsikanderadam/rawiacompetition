@@ -22,6 +22,13 @@
       "when": 1788770156314,
       "tag": "0002_dashing_malice",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788772863105,
+      "tag": "0003_shallow_blue_shield",
+      "breakpoints": true
     }
   ]
 }

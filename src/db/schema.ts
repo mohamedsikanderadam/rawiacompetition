@@ -20,10 +20,6 @@ export const campaigns = pgTable("campaigns", {
   name: text("name").notNull(),
   startDate: date("start_date").notNull(),
   endDate: date("end_date").notNull(),
-  universityACode: text("university_a_code").notNull(),
-  universityAName: text("university_a_name").notNull(),
-  universityBCode: text("university_b_code").notNull(),
-  universityBName: text("university_b_name").notNull(),
   /** Kiosk copy: "Who runs" / "the campus?" — editable so non-university campaigns read right. */
   headline: text("headline").notNull().default("Who runs"),
   headlineAccent: text("headline_accent").notNull().default("the campus?"),
@@ -41,6 +37,22 @@ export const campaigns = pgTable("campaigns", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** 2–6 contestants per campaign. Votes reference the contestant by `code`. */
+export const contestants = pgTable(
+  "contestants",
+  {
+    id: serial("id").primaryKey(),
+    campaignId: integer("campaign_id")
+      .notNull()
+      .references(() => campaigns.id),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    position: integer("position").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("contestants_campaign_code_idx").on(t.campaignId, t.code)],
+);
 
 export const devices = pgTable("devices", {
   id: serial("id").primaryKey(),
@@ -105,6 +117,7 @@ export const auditLogs = pgTable(
 );
 
 export type Campaign = typeof campaigns.$inferSelect;
+export type ContestantRow = typeof contestants.$inferSelect;
 export type Device = typeof devices.$inferSelect;
 export type Vote = typeof votes.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;

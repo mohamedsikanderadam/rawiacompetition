@@ -4,7 +4,8 @@ import { countdownLabel, determineWinner, getCampaignStatus } from "@/lib/battle
 import { getCampaign, getScoreboard } from "@/lib/campaign";
 import { formatYmdLong } from "@/lib/time";
 import { Card, Stat, buttonClass, buttonDangerClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
-import { BattleMeter } from "@/components/battle/scoreboard";
+import { BattleMeter, contestantColor } from "@/components/battle/scoreboard";
+import { demoTargetFor } from "@/lib/demo";
 import { resetDemoDataAction, resetScoresAction, startLiveCampaignAction } from "../actions";
 
 export default async function AdminOverview() {
@@ -36,16 +37,18 @@ export default async function AdminOverview() {
         </div>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat label={`${board.a.code} votes`} value={board.a.votes.toLocaleString()} hint={`${board.a.pct}% · ${board.a.name}`} tone="a" />
-        <Stat label={`${board.b.code} votes`} value={board.b.votes.toLocaleString()} hint={`${board.b.pct}% · ${board.b.name}`} tone="b" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {board.entries.map((e, i) => (
+          <Stat key={e.code} label={`${e.code} votes`} value={e.votes.toLocaleString()} hint={`${e.pct}% · ${e.name}`} color={contestantColor(i, "dark")} />
+        ))}
         <Stat label="Total votes" value={board.total.toLocaleString()} hint="valid votes only" />
         <Stat
           label={status.phase === "ended" ? "Winner" : "Current leader"}
           value={board.leader ?? (board.total ? "TIE" : "—")}
-          tone={board.leader === board.a.code ? "a" : board.leader === board.b.code ? "b" : "gold"}
+          color={board.leader ? contestantColor(board.entries.findIndex((e) => e.code === board.leader), "dark") : undefined}
+          tone="gold"
         />
-        <Stat label="Lead" value={board.lead.toLocaleString()} hint={"tie" in winner ? "dead heat" : `${winner.code} ahead`} tone="gold" />
+        <Stat label="Lead" value={board.lead.toLocaleString()} hint={"tie" in winner ? "dead heat" : `${winner.code} ahead of 2nd place`} tone="gold" />
       </div>
 
       <Card title="Battle meter">
@@ -55,14 +58,14 @@ export default async function AdminOverview() {
       <div className="grid gap-4 md:grid-cols-2">
         <Card title="Today">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-cream/50">{board.a.code}</p>
-              <p className="font-display text-3xl text-uos tabular">{analytics.today.a}</p>
-            </div>
-            <div>
-              <p className="text-xs text-cream/50">{board.b.code}</p>
-              <p className="font-display text-3xl text-aus tabular">{analytics.today.b}</p>
-            </div>
+            {analytics.contestants.map((c, i) => (
+              <div key={c.code}>
+                <p className="text-xs text-cream/50">{c.code}</p>
+                <p className="font-display text-3xl tabular" style={{ color: contestantColor(i, "dark") }}>
+                  {analytics.today.counts[c.code] ?? 0}
+                </p>
+              </div>
+            ))}
             <div>
               <p className="text-xs text-cream/50">Total</p>
               <p className="font-display text-3xl tabular">{analytics.today.total}</p>
@@ -113,12 +116,12 @@ export default async function AdminOverview() {
       <Card title="Reset scores">
         <form action={resetScoresAction} className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
           <p className="text-sm text-cream/80">
-            Sets both contestants back to <strong>0 – 0</strong> by deleting every vote for this campaign ({board.total.toLocaleString("en-US")} on record). Export a CSV first if you
+            Sets every contestant back to <strong>0</strong> by deleting every vote for this campaign ({board.total.toLocaleString("en-US")} on record). Export a CSV first if you
             need the history. The reset is written to the audit log with the removed totals. Type <code>RESET</code> to confirm.
           </p>
           <input name="confirm" placeholder="RESET" className={`${inputClass} md:w-40`} autoComplete="off" />
           <button type="submit" className={buttonDangerClass}>
-            Reset scores to 0 – 0
+            Reset scores to 0
           </button>
         </form>
       </Card>
@@ -128,18 +131,18 @@ export default async function AdminOverview() {
           <div>
             <p className="text-sm text-cream/70">
               {campaign.mode === "demo"
-                ? "The database currently contains demo votes for testing. Reload a fresh demo set, or clear everything and start the real campaign at 0 – 0."
+                ? "The database currently contains demo votes for testing. Reload a fresh demo set, or clear everything and start the real campaign at 0."
                 : "The campaign is live. Loading demo data will replace all real votes — only do this if you are testing."}
             </p>
             <form action={resetDemoDataAction} className="mt-4">
               <button type="submit" className={buttonGhostClass}>
-                Load demo data ({campaign.universityACode} 327 / {campaign.universityBCode} 294)
+                Load demo data ({board.entries.map((e, i) => `${e.code} ${demoTargetFor(i)}`).join(" / ")})
               </button>
             </form>
           </div>
           <form action={startLiveCampaignAction} className="space-y-3 rounded-xl border border-red-500/30 bg-red-500/5 p-4">
             <p className="text-sm text-cream/80">
-              <strong>Start live campaign</strong> deletes every vote and resets the score to 0 – 0. The action is written to the audit log. Type <code>GO LIVE</code> to confirm.
+              <strong>Start live campaign</strong> deletes every vote and resets every score to 0. The action is written to the audit log. Type <code>GO LIVE</code> to confirm.
             </p>
             <input name="confirm" placeholder="GO LIVE" className={inputClass} autoComplete="off" />
             <button type="submit" className={campaign.mode === "demo" ? buttonClass : buttonDangerClass}>

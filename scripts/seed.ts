@@ -54,7 +54,7 @@ async function main() {
     const voteCount = await db.$count(schema.votes, eq(schema.votes.campaignId, campaign.id));
     if (voteCount === 0 && campaign.mode === "demo") {
       const t = await resetDemoData(campaign, device);
-      console.log(`Demo votes loaded: ${campaign.universityACode} ${t.a} / ${campaign.universityBCode} ${t.b}`);
+      console.log(`Demo votes loaded: ${Object.entries(t).map(([code, n]) => `${code} ${n}`).join(" / ")}`);
     } else {
       console.log(`Skipping demo data (existing votes: ${voteCount}, mode: ${campaign.mode})`);
     }

@@ -1,20 +1,46 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { Scoreboard } from "@/lib/battle";
+import type { Scoreboard, ScoreEntry } from "@/lib/battle";
 
-/** Contestant A = Brick Red, contestant B = Dark Coffee (Rawia brand palette). */
-export const SIDE_CLASSES = {
-  a: { text: "text-side-a", bg: "bg-side-a", deep: "bg-side-a-deep", ring: "ring-side-a", from: "from-side-a", to: "to-side-a-deep", shadow: "shadow-side-a/30", hex: "#b63a2b" },
-  b: { text: "text-side-b", bg: "bg-side-b", deep: "bg-side-b-deep", ring: "ring-side-b", from: "from-side-b", to: "to-side-b-deep", shadow: "shadow-side-b/30", hex: "#311f15" },
-} as const;
+/**
+ * Card colours by contestant position, all from the Rawia brand palette:
+ * Brick Red, Dark Coffee, Dusty Olive, then tan / deep brick / pitch black for 4–6.
+ * `onDark` is a lighter stand-in for use on the admin's dark canvas.
+ */
+export const CONTESTANT_COLORS = [
+  { hex: "#b63a2b", onDark: "#e0644f" },
+  { hex: "#311f15", onDark: "#c9a27e" },
+  { hex: "#6e7a3a", onDark: "#a4b35c" },
+  { hex: "#8a6a4b", onDark: "#d8b48e" },
+  { hex: "#8f2419", onDark: "#f08a78" },
+  { hex: "#151400", onDark: "#a6a68a" },
+] as const;
 
-export type Side = keyof typeof SIDE_CLASSES;
+export function contestantColor(index: number, tone: "light" | "dark" = "light"): string {
+  const c = CONTESTANT_COLORS[((index % CONTESTANT_COLORS.length) + CONTESTANT_COLORS.length) % CONTESTANT_COLORS.length];
+  return tone === "dark" ? c.onDark : c.hex;
+}
 
-export function sideOf(board: Scoreboard, code: string | null): Side | null {
-  if (code === board.a.code) return "a";
-  if (code === board.b.code) return "b";
-  return null;
+export function indexOf(board: Scoreboard, code: string | null): number {
+  return board.entries.findIndex((e) => e.code === code);
+}
+
+export function colorFor(board: Scoreboard, code: string | null, tone: "light" | "dark" = "light"): string | undefined {
+  const i = indexOf(board, code);
+  return i < 0 ? undefined : contestantColor(i, tone);
+}
+
+export function contestantLabel(index: number): string {
+  return `Contestant ${String(index + 1).padStart(2, "0")}`;
+}
+
+/** Grid column classes that keep 2–6 cards readable on a tablet in landscape. */
+export function cardGridClass(n: number): string {
+  if (n <= 2) return "grid-cols-1 md:grid-cols-2";
+  if (n === 3) return "grid-cols-1 md:grid-cols-3";
+  if (n === 4) return "grid-cols-2";
+  return "grid-cols-2 md:grid-cols-3";
 }
 
 /** Rawia logo lock-up. `tone` picks the dark or light artwork per the brand guide. */
@@ -52,27 +78,31 @@ export function AnimatedNumber({ value, className, durationMs = 700 }: { value: 
   return <span className={`tabular ${className ?? ""}`}>{display.toLocaleString("en-US")}</span>;
 }
 
-/** `tone="dark"` swaps contestant B's Dark Coffee for a tan that stays visible on the admin's dark canvas. */
+/** Segmented share-of-vote bar: one slice per contestant, in display order, with a legend. */
 export function BattleMeter({ board, size = "lg", tone = "light" }: { board: Scoreboard; size?: "sm" | "lg"; tone?: "light" | "dark" }) {
   const h = size === "lg" ? "h-6 md:h-9" : "h-3";
   const label = size === "lg" ? "text-lg md:text-2xl" : "text-sm";
-  const bText = tone === "dark" ? "text-aus" : "text-side-b";
-  const bFill = tone === "dark" ? "bg-aus" : "bg-side-b";
   const track = tone === "dark" ? "bg-white/10 ring-white/10" : "bg-ink/10 ring-ink/10";
+  const divider = tone === "dark" ? "bg-black/40" : "bg-apricot";
   return (
     <div className="w-full">
-      <div className={`mb-2 flex items-center justify-between font-display ${label}`}>
-        <span className="text-side-a">
-          {board.a.code} {board.a.pct}%
-        </span>
-        <span className={bText}>
-          {board.b.pct}% {board.b.code}
-        </span>
+      <div className={`mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 font-display ${label}`}>
+        {board.entries.map((e, i) => (
+          <span key={e.code} style={{ color: contestantColor(i, tone) }}>
+            {e.code} {e.pct}%
+          </span>
+        ))}
       </div>
-      <div className={`relative ${h} w-full overflow-hidden rounded-full ring-1 ${track}`}>
-        <div className="absolute inset-y-0 left-0 bg-side-a transition-[width] duration-700 ease-out" style={{ width: `${board.a.pct}%` }} />
-        <div className={`absolute inset-y-0 right-0 ${bFill} transition-[width] duration-700 ease-out`} style={{ width: `${board.b.pct}%` }} />
-        <div className="absolute inset-y-0 w-1 bg-apricot transition-[left] duration-700 ease-out" style={{ left: `calc(${board.a.pct}% - 2px)` }} />
+      <div className={`relative flex ${h} w-full overflow-hidden rounded-full ring-1 ${track}`}>
+        {board.entries.map((e, i) => (
+          <div
+            key={e.code}
+            className="relative h-full transition-[width] duration-700 ease-out"
+            style={{ width: `${e.pct}%`, background: contestantColor(i, tone) }}
+          >
+            {i > 0 && <span className={`absolute inset-y-0 left-0 w-0.5 ${divider}`} />}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -80,34 +110,42 @@ export function BattleMeter({ board, size = "lg", tone = "light" }: { board: Sco
 
 export function LeaderLine({ board, className }: { board: Scoreboard; className?: string }) {
   if (board.total === 0) return <p className={`font-display ${className ?? ""}`}>The battle begins — no votes yet</p>;
-  if (!board.leader) return <p className={`font-display ${className ?? ""}`}>Dead heat — all tied at {board.a.votes}</p>;
-  const side = sideOf(board, board.leader);
+  if (!board.leader) {
+    const top = Math.max(...board.entries.map((e) => e.votes));
+    return <p className={`font-display ${className ?? ""}`}>Dead heat — tied at {top.toLocaleString("en-US")}</p>;
+  }
   return (
-    <p className={`font-display ${side ? SIDE_CLASSES[side].text : ""} ${className ?? ""}`}>
+    <p className={`font-display ${className ?? ""}`} style={{ color: colorFor(board, board.leader) }}>
       {board.leader} leads by {board.lead.toLocaleString("en-US")}
     </p>
   );
 }
 
-export function ScorePair({ board, sizeClass = "text-7xl md:text-9xl" }: { board: Scoreboard; sizeClass?: string }) {
+/** Final tallies side by side (“vs” between them for two contestants). */
+export function ScoreRow({ board, sizeClass }: { board: Scoreboard; sizeClass?: string }) {
+  const n = board.entries.length;
+  const size = sizeClass ?? (n <= 2 ? "text-7xl md:text-9xl" : n <= 4 ? "text-5xl md:text-7xl" : "text-4xl md:text-6xl");
   return (
-    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-4 md:gap-10">
-      <div className="text-center">
-        <div className="eyebrow text-side-a">{board.a.code}</div>
-        <AnimatedNumber value={board.a.votes} className={`font-display ${sizeClass} leading-none text-ink`} />
-      </div>
-      <div className="eyebrow text-ink-soft">vs</div>
-      <div className="text-center">
-        <div className="eyebrow text-side-b">{board.b.code}</div>
-        <AnimatedNumber value={board.b.votes} className={`font-display ${sizeClass} leading-none text-ink`} />
-      </div>
+    <div className="flex w-full flex-wrap items-center justify-center gap-6 md:gap-10">
+      {board.entries.map((e: ScoreEntry, i) => (
+        <div key={e.code} className="flex items-center gap-6 md:gap-10">
+          {i > 0 && n === 2 && <div className="eyebrow text-ink-soft">vs</div>}
+          <div className="text-center">
+            <div className="eyebrow" style={{ color: contestantColor(i) }}>
+              {e.code}
+            </div>
+            <AnimatedNumber value={e.votes} className={`font-display ${size} leading-none text-ink`} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-export function Confetti({ side }: { side: Side }) {
+export function Confetti({ index }: { index: number }) {
   const pieces = Array.from({ length: 48 }, (_, i) => i);
-  const palette = side === "a" ? ["bg-brick", "bg-olive", "bg-coffee"] : ["bg-coffee", "bg-olive", "bg-brick"];
+  const palette = ["bg-brick", "bg-olive", "bg-coffee"];
+  const own = contestantColor(index);
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
       {pieces.map((i) => {
@@ -118,9 +156,10 @@ export function Confetti({ side }: { side: Side }) {
         return (
           <span
             key={i}
-            className={`absolute -top-6 block ${i % 2 ? "rounded-full" : "rounded-sm"} ${palette[i % 3]} animate-confetti`}
+            className={`absolute -top-6 block ${i % 2 ? "rounded-full" : "rounded-sm"} ${i % 3 === 0 ? "" : palette[i % 3]} animate-confetti`}
             style={
               {
+                background: i % 3 === 0 ? own : undefined,
                 left: `${left}%`,
                 width: size,
                 height: i % 2 ? size : size * 1.6,
@@ -140,8 +179,8 @@ export function Confetti({ side }: { side: Side }) {
  * The fun bit: the Rawia jug tips over and "pours" the contestant colour into a cup,
  * which fills up while a wave laps at the surface. Then the counted check pops in.
  */
-export function PourAnimation({ side }: { side: Side }) {
-  const hex = SIDE_CLASSES[side].hex;
+export function PourAnimation({ index }: { index: number }) {
+  const hex = contestantColor(index);
   return (
     <div className="relative mx-auto h-44 w-56 md:h-52 md:w-64" aria-hidden>
       {/* Jug */}

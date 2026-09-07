@@ -1,33 +1,53 @@
 import type { Campaign } from "@/db/schema";
 import { daysBetween, localDateKey, localDayEnd, localDayStart } from "./time";
 
-export type UniversityInfo = { code: string; name: string };
+export const MIN_CONTESTANTS = 2;
+export const MAX_CONTESTANTS = 6;
 
-export type Totals = { a: number; b: number };
+export type Contestant = { code: string; name: string };
+
+/** Valid-vote count per contestant code. */
+export type Totals = Record<string, number>;
+
+export type ScoreEntry = Contestant & { votes: number; pct: number };
 
 export type Scoreboard = {
-  a: UniversityInfo & { votes: number; pct: number };
-  b: UniversityInfo & { votes: number; pct: number };
+  /** In configured display order. */
+  entries: ScoreEntry[];
   total: number;
-  /** Code of the leader, or null when tied. */
+  /** Code of the sole leader, or null when the top spot is shared. */
   leader: string | null;
+  /** Gap between first and second place. */
   lead: number;
 };
 
 /** Pure leaderboard calculation from counted valid votes. */
-export function buildScoreboard(campaign: Pick<Campaign, "universityACode" | "universityAName" | "universityBCode" | "universityBName">, totals: Totals): Scoreboard {
-  const total = totals.a + totals.b;
-  const pctA = total === 0 ? 50 : Math.round((totals.a / total) * 1000) / 10;
-  const pctB = total === 0 ? 50 : Math.round((100 - pctA) * 10) / 10;
-  const lead = Math.abs(totals.a - totals.b);
-  const leader = totals.a === totals.b ? null : totals.a > totals.b ? campaign.universityACode : campaign.universityBCode;
+export function buildScoreboard(contestants: Contestant[], totals: Totals): Scoreboard {
+  const counts = contestants.map((c) => totals[c.code] ?? 0);
+  const total = counts.reduce((s, n) => s + n, 0);
+  const n = contestants.length;
+  // Percentages round to 0.1 and are adjusted so they always sum to exactly 100.
+  let pcts = total === 0 ? counts.map(() => Math.round((1000 / n)) / 10) : counts.map((c) => Math.round((c / total) * 1000) / 10);
+  const drift = Math.round((100 - pcts.reduce((s, p) => s + p, 0)) * 10) / 10;
+  if (drift !== 0 && pcts.length) {
+    const i = counts.indexOf(Math.max(...counts));
+    pcts = pcts.map((p, j) => (j === i ? Math.round((p + drift) * 10) / 10 : p));
+  }
+  const sorted = [...counts].sort((x, y) => y - x);
+  const first = sorted[0] ?? 0;
+  const second = sorted[1] ?? 0;
+  const leader = first > second ? contestants[counts.indexOf(first)].code : null;
   return {
-    a: { code: campaign.universityACode, name: campaign.universityAName, votes: totals.a, pct: pctA },
-    b: { code: campaign.universityBCode, name: campaign.universityBName, votes: totals.b, pct: pctB },
+    entries: contestants.map((c, i) => ({ code: c.code, name: c.name, votes: counts[i], pct: pcts[i] })),
     total,
     leader,
-    lead,
+    lead: first - second,
   };
+}
+
+/** Entries sorted by votes (desc), stable on display order. */
+export function rankEntries(board: Scoreboard): ScoreEntry[] {
+  return [...board.entries].sort((x, y) => y.votes - x.votes);
 }
 
 export type CampaignPhase = "upcoming" | "live" | "paused" | "ended";
@@ -87,14 +107,18 @@ export function countdownLabel(status: CampaignStatus): string {
   }
 }
 
-export type Winner = { code: string; name: string; margin: number } | { tie: true; margin: 0 };
+export type Winner = { code: string; name: string; margin: number } | { tie: true; margin: 0; codes: string[] };
 
 export function determineWinner(board: Scoreboard): Winner {
-  if (board.a.votes === board.b.votes) return { tie: true, margin: 0 };
-  const w = board.a.votes > board.b.votes ? board.a : board.b;
-  return { code: w.code, name: w.name, margin: board.lead };
+  const ranked = rankEntries(board);
+  const top = ranked[0];
+  if (!top || !board.leader) {
+    const max = top?.votes ?? 0;
+    return { tie: true, margin: 0, codes: ranked.filter((e) => e.votes === max).map((e) => e.code) };
+  }
+  return { code: top.code, name: top.name, margin: board.lead };
 }
 
-export function isValidUniversity(campaign: Pick<Campaign, "universityACode" | "universityBCode">, code: string): boolean {
-  return code === campaign.universityACode || code === campaign.universityBCode;
+export function isValidContestant(contestants: Contestant[], code: string): boolean {
+  return contestants.some((c) => c.code === code);
 }

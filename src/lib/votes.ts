@@ -2,7 +2,8 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
 import { db, schema } from "@/db";
 import type { Campaign, Device, Vote } from "@/db/schema";
-import { getCampaignStatus, isValidUniversity } from "./battle";
+import { getCampaignStatus, isValidContestant } from "./battle";
+import { getContestants } from "./campaign";
 
 /** Two votes from the same device closer than this are treated as an accidental double tap. */
 export const DUPLICATE_WINDOW_MS = 1500;
@@ -50,8 +51,8 @@ export async function castVote(input: CastVoteInput): Promise<CastVoteResult> {
     return { ok: false, code: "invalid_input", message: "Invalid session or vote id." };
   }
   if (!device.active) return { ok: false, code: "device_inactive", message: "This kiosk has been deactivated." };
-  if (!isValidUniversity(campaign, university)) {
-    return { ok: false, code: "invalid_university", message: "Unknown university." };
+  if (!isValidContestant(await getContestants(campaign), university)) {
+    return { ok: false, code: "invalid_university", message: "Unknown contestant." };
   }
   const status = getCampaignStatus(campaign, now);
   if (status.phase === "paused") return { ok: false, code: "campaign_inactive", message: "Voting is paused." };

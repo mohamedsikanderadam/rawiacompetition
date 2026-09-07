@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Scoreboard } from "@/lib/battle";
 import type { KioskState } from "@/lib/kiosk";
-import { BattleMeter, Brand, Confetti, LeaderLine, PourAnimation, SIDE_CLASSES, ScorePair, sideOf, type Side } from "@/components/battle/scoreboard";
+import { BattleMeter, Brand, Confetti, LeaderLine, PourAnimation, ScoreRow, cardGridClass, colorFor, contestantColor, contestantLabel, indexOf } from "@/components/battle/scoreboard";
 import { KioskSetup } from "./kiosk-setup";
 
 type Screen =
@@ -11,8 +11,8 @@ type Screen =
   | { kind: "setup"; message?: string }
   | { kind: "vote" }
   | { kind: "attract" }
-  | { kind: "submitting"; side: Side }
-  | { kind: "confirmed"; side: Side; board: Scoreboard }
+  | { kind: "submitting"; code: string }
+  | { kind: "confirmed"; code: string; board: Scoreboard }
   | { kind: "failed"; title: string; message: string }
   | { kind: "closed" };
 
@@ -157,11 +157,10 @@ export function KioskApp() {
   }, [loadState, restingScreen, state]);
 
   const vote = useCallback(
-    async (side: Side) => {
+    async (university: string) => {
       if (lockRef.current || !state) return;
       lockRef.current = true;
-      setScreen({ kind: "submitting", side });
-      const university = side === "a" ? state.campaign.a.code : state.campaign.b.code;
+      setScreen({ kind: "submitting", code: university });
       const body = JSON.stringify({ university, sessionId: sessionRef.current, clientVoteId: newId("v") });
 
       const attempt = () =>
@@ -215,7 +214,7 @@ export function KioskApp() {
 
       setOnline(true);
       setState((prev) => (prev ? { ...prev, scoreboard: json.scoreboard } : prev));
-      setScreen({ kind: "confirmed", side, board: json.scoreboard });
+      setScreen({ kind: "confirmed", code: university, board: json.scoreboard });
       setTimeout(() => void resetToVote(), Math.min(10_000, Math.max(1_000, state.settings.confirmationDurationMs)));
     },
     [state, resetToVote],
@@ -242,7 +241,7 @@ export function KioskApp() {
       {screen.kind === "closed" && state && <ClosedScreen state={state} />}
 
       {(screen.kind === "vote" || screen.kind === "attract" || screen.kind === "submitting") && state && (
-        <VoteScreen state={state} pending={screen.kind === "submitting" ? screen.side : null} onVote={vote} />
+        <VoteScreen state={state} pending={screen.kind === "submitting" ? screen.code : null} onVote={vote} />
       )}
 
       {screen.kind === "attract" && state && (
@@ -256,8 +255,13 @@ export function KioskApp() {
         >
           <Brand className="animate-wiggle !h-16 md:!h-24" />
           <p className="eyebrow text-brick">Rawia Cafe presents</p>
-          <div className="font-display text-6xl leading-none md:text-9xl">
-            <span className="text-side-a">{state.campaign.a.code}</span> <span className="text-ink-soft">vs</span> <span className="text-side-b">{state.campaign.b.code}</span>
+          <div className={`flex flex-wrap items-center justify-center gap-x-4 font-display leading-none ${state.campaign.contestants.length > 3 ? "text-4xl md:text-7xl" : "text-6xl md:text-9xl"}`}>
+            {state.campaign.contestants.map((c, i) => (
+              <span key={c.code} className="inline-flex items-center gap-x-4">
+                {i > 0 && <span className="text-ink-soft">vs</span>}
+                <span style={{ color: contestantColor(i) }}>{c.code}</span>
+              </span>
+            ))}
           </div>
           <h2 className="font-display text-3xl md:text-5xl">
             {state.campaign.headline} <span className="text-brick">{state.campaign.headlineAccent}</span>
@@ -272,7 +276,7 @@ export function KioskApp() {
         </button>
       )}
 
-      {screen.kind === "confirmed" && state && <ConfirmedScreen state={state} side={screen.side} board={screen.board} />}
+      {screen.kind === "confirmed" && state && <ConfirmedScreen state={state} code={screen.code} board={screen.board} />}
 
       {screen.kind === "failed" && (
         <div className="bg-arena absolute inset-0 z-40 flex flex-col items-center justify-center gap-6 px-8 text-center animate-shake">
@@ -304,10 +308,11 @@ function KioskHeader({ state }: { state: KioskState }) {
   );
 }
 
-function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: Side | null; onVote: (side: Side) => void }) {
+function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: string | null; onVote: (code: string) => void }) {
   const { scoreboard: board, settings, campaign } = state;
   const showScores = settings.showScoresOnVote;
   const disabled = pending !== null;
+  const n = campaign.contestants.length;
 
   return (
     <div className="flex flex-1 flex-col px-5 py-5 md:px-12 md:py-8">
@@ -323,9 +328,20 @@ function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: Si
         <p className="mt-4 max-w-2xl text-lg text-ink-soft md:text-2xl">{campaign.subline}</p>
       </div>
 
-      <div className="mt-6 grid flex-1 grid-cols-1 gap-4 md:mt-10 md:grid-cols-2 md:gap-6">
-        <VoteButton side="a" code={campaign.a.code} name={campaign.a.name} votes={showScores ? board.a.votes : null} pending={pending} disabled={disabled} onVote={onVote} />
-        <VoteButton side="b" code={campaign.b.code} name={campaign.b.name} votes={showScores ? board.b.votes : null} pending={pending} disabled={disabled} onVote={onVote} />
+      <div className={`mt-6 grid flex-1 gap-3 md:mt-10 md:gap-5 ${cardGridClass(n)}`}>
+        {campaign.contestants.map((c, i) => (
+          <VoteButton
+            key={c.code}
+            index={i}
+            count={n}
+            code={c.code}
+            name={c.name}
+            votes={showScores ? (board.entries.find((e) => e.code === c.code)?.votes ?? 0) : null}
+            pending={pending}
+            disabled={disabled}
+            onVote={onVote}
+          />
+        ))}
       </div>
 
       <footer className="mt-5 flex flex-col gap-3 md:mt-8 md:flex-row md:items-end md:justify-between">
@@ -345,7 +361,8 @@ function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: Si
 }
 
 function VoteButton({
-  side,
+  index,
+  count,
   code,
   name,
   votes,
@@ -353,31 +370,36 @@ function VoteButton({
   disabled,
   onVote,
 }: {
-  side: Side;
+  index: number;
+  count: number;
   code: string;
   name: string;
   votes: number | null;
-  pending: Side | null;
+  pending: string | null;
   disabled: boolean;
-  onVote: (side: Side) => void;
+  onVote: (code: string) => void;
 }) {
-  const c = SIDE_CLASSES[side];
-  const isPending = pending === side;
+  const isPending = pending === code;
+  const compact = count > 2;
+  const dense = count > 4;
   return (
     <button
       type="button"
       disabled={disabled}
       aria-label={`Vote ${code} — ${name}`}
-      onClick={() => onVote(side)}
-      className={`relative flex min-h-[26vh] flex-col justify-between rounded-[2rem] ${c.bg} p-6 text-left text-apricot shadow-2xl ${c.shadow} transition-transform duration-150 active:scale-[0.97] disabled:opacity-80 md:min-h-[38vh] md:p-9 ${isPending ? "animate-pulse-slow" : ""}`}
+      onClick={() => onVote(code)}
+      style={{ background: contestantColor(index) }}
+      className={`relative flex flex-col justify-between rounded-[2rem] text-left text-apricot shadow-2xl shadow-ink/20 transition-transform duration-150 active:scale-[0.97] disabled:opacity-80 ${
+        dense ? "min-h-[18vh] p-4 md:min-h-[22vh] md:p-6" : compact ? "min-h-[20vh] p-5 md:min-h-[30vh] md:p-7" : "min-h-[26vh] p-6 md:min-h-[38vh] md:p-9"
+      } ${isPending ? "animate-pulse-slow" : ""}`}
     >
       <div className="flex items-start justify-between">
-        <span className="eyebrow opacity-80">{side === "a" ? "Contestant 01" : "Contestant 02"}</span>
-        {votes !== null && <span className="font-display text-2xl tabular md:text-4xl">{votes.toLocaleString("en-US")}</span>}
+        <span className="eyebrow opacity-80">{contestantLabel(index)}</span>
+        {votes !== null && <span className={`font-display tabular ${dense ? "text-xl md:text-2xl" : "text-2xl md:text-4xl"}`}>{votes.toLocaleString("en-US")}</span>}
       </div>
       <div>
-        <span className="block font-display text-7xl leading-none md:text-[9rem]">{code}</span>
-        <span className="mt-3 block text-lg font-medium opacity-90 md:text-2xl">{name}</span>
+        <span className={`block font-display leading-none ${dense ? "text-4xl md:text-6xl" : compact ? "text-5xl md:text-8xl" : "text-7xl md:text-[9rem]"}`}>{code}</span>
+        <span className={`mt-3 block font-medium opacity-90 ${dense ? "text-sm md:text-lg" : "text-lg md:text-2xl"}`}>{name}</span>
       </div>
       <span className="eyebrow mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-apricot/15 px-4 py-2">
         {isPending ? "Recording…" : `Tap to vote ${code}`}
@@ -387,39 +409,44 @@ function VoteButton({
   );
 }
 
-function ConfirmedScreen({ state, side, board }: { state: KioskState; side: Side; board: Scoreboard }) {
-  const c = SIDE_CLASSES[side];
-  const code = side === "a" ? board.a.code : board.b.code;
+function ConfirmedScreen({ state, code, board }: { state: KioskState; code: string; board: Scoreboard }) {
+  const index = Math.max(0, indexOf(board, code));
   const showScore = state.settings.showConfirmationScore;
-  const leaderSide = sideOf(board, board.leader);
   return (
     <div className="bg-arena absolute inset-0 z-40 flex flex-col overflow-hidden px-5 py-5 md:px-12 md:py-8">
-      <Confetti side={side} />
+      <Confetti index={index} />
       <KioskHeader state={state} />
       <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center md:gap-4">
-        <PourAnimation side={side} />
+        <PourAnimation index={index} />
         <p className="eyebrow text-olive animate-rise">Counted</p>
         <h2 className="font-display text-4xl leading-[0.95] md:text-7xl animate-rise" style={{ animationDelay: "0.1s" }}>
           Your voice is in.
         </h2>
         <p className="max-w-xl text-base text-ink-soft md:text-xl animate-rise" style={{ animationDelay: "0.2s" }}>
-          One tap for <span className={`font-bold ${c.text}`}>{code}</span>. Thank you for backing your side at Rawia.
+          One tap for{" "}
+          <span className="font-bold" style={{ color: contestantColor(index) }}>
+            {code}
+          </span>
+          . Thank you for backing your side at Rawia.
         </p>
         {showScore && (
           <div className="mt-1 w-full max-w-3xl animate-rise" style={{ animationDelay: "0.35s" }}>
             <div className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-2xl border border-ink/10 bg-white/50 p-4 text-left md:p-5">
               <div>
                 <p className="eyebrow text-ink-soft">Current leader</p>
-                <p className={`mt-1 font-display text-2xl md:text-4xl ${leaderSide ? SIDE_CLASSES[leaderSide].text : "text-ink"}`}>
+                <p className="mt-1 font-display text-2xl text-ink md:text-4xl" style={{ color: colorFor(board, board.leader) }}>
                   {board.leader ?? (board.total ? "Tied" : "—")}
                 </p>
               </div>
               <div className="text-right">
                 <p className="eyebrow text-ink-soft">Tally</p>
-                <p className="mt-1 font-display text-2xl tabular md:text-4xl">
-                  <span className="text-side-a">{board.a.votes.toLocaleString("en-US")}</span>
-                  <span className="text-ink-soft"> · </span>
-                  <span className="text-side-b">{board.b.votes.toLocaleString("en-US")}</span>
+                <p className={`mt-1 font-display tabular ${board.entries.length > 3 ? "text-lg md:text-2xl" : "text-2xl md:text-4xl"}`}>
+                  {board.entries.map((e, i) => (
+                    <span key={e.code}>
+                      {i > 0 && <span className="text-ink-soft"> · </span>}
+                      <span style={{ color: contestantColor(i) }}>{e.votes.toLocaleString("en-US")}</span>
+                    </span>
+                  ))}
                 </p>
               </div>
               <div className="col-span-2">
@@ -445,10 +472,12 @@ function ClosedScreen({ state }: { state: KioskState }) {
           {"tie" in winner ? (
             <h1 className="font-display text-5xl md:text-8xl animate-pop">It ends in a tie.</h1>
           ) : (
-            <h1 className={`font-display text-5xl md:text-8xl animate-pop ${SIDE_CLASSES[sideOf(board, winner.code) ?? "a"].text}`}>{winner.name} wins.</h1>
+            <h1 className="font-display text-5xl md:text-8xl animate-pop" style={{ color: colorFor(board, winner.code) }}>
+              {winner.name} wins.
+            </h1>
           )}
-          <div className="w-full max-w-4xl">
-            <ScorePair board={board} />
+          <div className="w-full max-w-5xl">
+            <ScoreRow board={board} />
           </div>
           {!("tie" in winner) && (
             <p className="text-xl text-ink-soft md:text-3xl">

@@ -7,7 +7,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { clearSessionCookie, getAdminSession, requireAdmin, setSessionCookie, verifyCredentials } from "@/lib/auth";
-import { getCampaign } from "@/lib/campaign";
+import { MAX_CONTESTANTS, MIN_CONTESTANTS } from "@/lib/battle";
+import { getCampaign, getContestants } from "@/lib/campaign";
 import { resetDemoData, resetScores, startLiveCampaign } from "@/lib/demo";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { generateDeviceToken, hashToken, invalidateVote, restoreVote } from "@/lib/votes";
@@ -133,10 +134,6 @@ const settingsSchema = z
     name: z.string().trim().min(1).max(120),
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    universityACode: z.string().trim().min(1).max(12).transform((s) => s.toUpperCase()),
-    universityAName: z.string().trim().min(1).max(120),
-    universityBCode: z.string().trim().min(1).max(12).transform((s) => s.toUpperCase()),
-    universityBName: z.string().trim().min(1).max(120),
     headline: z.string().trim().min(1).max(60),
     headlineAccent: z.string().trim().min(1).max(60),
     subline: z.string().trim().min(1).max(160),
@@ -148,8 +145,30 @@ const settingsSchema = z
     active: z.coerce.boolean(),
     reopened: z.coerce.boolean(),
   })
-  .refine((s) => s.startDate <= s.endDate, { message: "End date must be on or after the start date." })
-  .refine((s) => s.universityACode !== s.universityBCode, { message: "Contestant codes must differ." });
+  .refine((s) => s.startDate <= s.endDate, { message: "End date must be on or after the start date." });
+
+const contestantSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .min(1, "Every contestant needs a short code.")
+    .max(12, "Short codes are at most 12 characters.")
+    .transform((s) => s.toUpperCase()),
+  name: z.string().trim().min(1, "Every contestant needs a full name.").max(120),
+});
+
+const contestantsSchema = z
+  .array(contestantSchema)
+  .min(MIN_CONTESTANTS, `A battle needs at least ${MIN_CONTESTANTS} contestants.`)
+  .max(MAX_CONTESTANTS, `A battle can have at most ${MAX_CONTESTANTS} contestants.`)
+  .refine((list) => new Set(list.map((c) => c.code)).size === list.length, { message: "Contestant codes must be unique." });
+
+/** Reads `contestantCode[]` / `contestantName[]` pairs (in order) from the settings form. */
+function parseContestants(formData: FormData) {
+  const codes = formData.getAll("contestantCode").map(String);
+  const names = formData.getAll("contestantName").map(String);
+  return contestantsSchema.safeParse(codes.map((code, i) => ({ code, name: names[i] ?? "" })));
+}
 
 function checkbox(formData: FormData, key: string): "true" | "" {
   return formData.get(key) === "on" ? "true" : "";
@@ -167,16 +186,27 @@ export async function saveSettingsAction(_prev: ActionResult | null, formData: F
   };
   const parsed = settingsSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid settings." };
+  const contestants = parseContestants(formData);
+  if (!contestants.success) return { ok: false, message: contestants.error.issues[0]?.message ?? "Invalid contestants." };
 
   const campaign = await getCampaign();
   const before = { ...campaign };
-  await db.update(schema.campaigns).set({ ...parsed.data, updatedAt: new Date() }).where(eq(schema.campaigns.id, campaign.id));
+  const beforeContestants = (await getContestants(campaign)).map((c) => ({ code: c.code, name: c.name }));
+
+  await db.transaction(async (tx) => {
+    await tx.update(schema.campaigns).set({ ...parsed.data, updatedAt: new Date() }).where(eq(schema.campaigns.id, campaign.id));
+    // Replace the contestant list wholesale; votes reference contestants by code, so renaming a code
+    // simply hides the old code's votes (documented in the settings UI).
+    await tx.delete(schema.contestants).where(eq(schema.contestants.campaignId, campaign.id));
+    await tx.insert(schema.contestants).values(contestants.data.map((c, position) => ({ ...c, position, campaignId: campaign.id })));
+  });
 
   const changed: Record<string, { from: unknown; to: unknown }> = {};
   for (const [k, v] of Object.entries(parsed.data)) {
     const prev = before[k as keyof typeof before];
     if (prev !== v) changed[k] = { from: prev, to: v };
   }
+  if (JSON.stringify(beforeContestants) !== JSON.stringify(contestants.data)) changed.contestants = { from: beforeContestants, to: contestants.data };
   await audit(admin, "settings.updated", { details: changed });
   revalidateAdmin();
   return { ok: true, message: "Settings saved." };
