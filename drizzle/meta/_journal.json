@@ -15,6 +15,13 @@
       "when": 1788527945642,
       "tag": "0001_heavy_epoch",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788770156314,
+      "tag": "0002_dashing_malice",
+      "breakpoints": true
     }
   ]
 }

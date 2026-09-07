@@ -41,14 +41,14 @@ Requirements: Node 20+ and a PostgreSQL database.
 
 ```bash
 npm install
-cp .env.example .env          # then edit DATABASE_URL, SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD
+cp .env.example .env          # then edit DATABASE_URL, SESSION_SECRET, ADMIN_USERNAME, ADMIN_EMAIL, ADMIN_PASSWORD
 npm run db:setup              # runs migrations + seed (admin, RAWIA-KIOSK-01, demo votes)
 npm run dev                   # http://localhost:3000
 ```
 
 The seed prints the kiosk device token **once**. Open `http://localhost:3000/vote`, paste the token,
 and the kiosk is authorised (stored in an httpOnly cookie on that browser). Log in at `/admin` with
-`ADMIN_EMAIL` / `ADMIN_PASSWORD`.
+`ADMIN_USERNAME` (default `admin`) / `ADMIN_PASSWORD`.
 
 Need a throwaway Postgres? `docker run -d --name rawia-pg -e POSTGRES_PASSWORD=rawia -e POSTGRES_DB=rawia -p 5433:5432 postgres:16-alpine`
 matches the default `DATABASE_URL` in `.env.example`.
@@ -70,7 +70,7 @@ matches the default `DATABASE_URL` in `.env.example`.
    Render which bundle both. A single small instance is plenty for a few kiosks.
 2. **Create the database** and copy its `DATABASE_URL` (use the pooled/SSL URL if offered).
 3. **Set environment variables** on the host: `DATABASE_URL`, `SESSION_SECRET` (`openssl rand -hex 32`),
-   `ADMIN_EMAIL`, `ADMIN_PASSWORD` (≥ 12 chars, a real password manager one), `SEED_DEMO_DATA=false`,
+   `ADMIN_USERNAME` (default `admin`), `ADMIN_EMAIL` (contact only), `ADMIN_PASSWORD` (≥ 8 chars, a real password manager one), `SEED_DEMO_DATA=false`,
    `CAMPAIGN_TIMEZONE=Asia/Dubai`.
 4. **Deploy** from the GitHub repo. Build `npm run build`, start `npm start`. Then run once from the
    host's shell / one-off job: `npm run db:setup` — it creates the tables, the admin user and the first
@@ -91,7 +91,7 @@ matches the default `DATABASE_URL` in `.env.example`.
 ## Deploying on Replit
 
 1. Import the repo. Add a **PostgreSQL** database (Replit → Tools → Database) — it provides `DATABASE_URL`.
-2. In **Secrets** set `SESSION_SECRET` (`openssl rand -hex 32`), `ADMIN_EMAIL`, `ADMIN_PASSWORD` (≥ 12 chars).
+2. In **Secrets** set `SESSION_SECRET` (`openssl rand -hex 32`), `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (≥ 8 chars).
    Optional: `KIOSK_SEED_TOKEN`, `SEED_DEMO_DATA=false`, `CAMPAIGN_TIMEZONE` (default `Asia/Dubai`).
 3. Run once in the shell: `npm install && npm run db:setup` — copy the printed kiosk token.
 4. Build command `npm run build`, run command `npm start` (Autoscale or Reserved VM). Re-run

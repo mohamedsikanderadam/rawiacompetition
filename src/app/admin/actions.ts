@@ -38,12 +38,12 @@ export async function loginAction(_prev: ActionResult | null, formData: FormData
   if (!rl.ok) return { ok: false, message: "Too many login attempts. Try again in a few minutes." };
 
   const parsed = z
-    .object({ email: z.string().email().max(200), password: z.string().min(1).max(200), next: z.string().optional() })
+    .object({ username: z.string().trim().min(1).max(100), password: z.string().min(1).max(200), next: z.string().optional() })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { ok: false, message: "Enter your email and password." };
+  if (!parsed.success) return { ok: false, message: "Enter your username and password." };
 
-  const admin = await verifyCredentials(parsed.data.email, parsed.data.password);
-  if (!admin) return { ok: false, message: "Incorrect email or password." };
+  const admin = await verifyCredentials(parsed.data.username, parsed.data.password);
+  if (!admin) return { ok: false, message: "Incorrect username or password." };
 
   await setSessionCookie(admin);
   await audit(admin, "admin.login", { details: { ip } });
