@@ -134,7 +134,7 @@ active, campaign active, within dates (or manually reopened), university valid, 
 Discovering `/vote` or the API without a token yields `401`.
 
 ### Data model
-`campaigns` (settings) · `devices` · `votes` (one row per purchase: university, timestamp, device,
+`campaigns` (settings) · `contestants` (2–6 per campaign: code, name, position) · `devices` · `votes` (one row per purchase: contestant code in `university`, timestamp, device,
 session, status `valid|invalid`, invalidation metadata) · `admin_users` · `audit_logs`.
 Leaderboards are always computed from `votes WHERE status = 'valid'`; nothing is hard-deleted except
 by the explicit **Start live campaign** / **Reset demo data** actions, which are themselves audited.
@@ -147,6 +147,67 @@ by the explicit **Start live campaign** / **Reset demo data** actions, which are
 bcrypt password hashing · signed httpOnly session cookies (8 h) · `proxy.ts` gate on `/admin/**` and
 `/api/admin/**` plus server-side re-checks · zod validation on every input · parameterised queries
 via Drizzle · in-memory rate limits on login, vote and kiosk registration · no student PII collected.
+
+## Project history — every step we took, and why
+
+A chronological record of how this app went from brief to production, so anyone can retrace it.
+
+### 1. Brief → first working app (PR: initial commit on `main`)
+- **Goal**: one purchase at Rawia = one onsite vote (PURCHASE → VOTE → RESULT → RESET), no customer accounts, no PII.
+- Chose the stack: Next.js 16 App Router + TypeScript, Tailwind 4, PostgreSQL via Drizzle ORM, `jose` sessions, Vitest.
+- Built the data model (`campaigns`, `devices`, `votes`, `admin_users`, `audit_logs`) and SQL migrations in `drizzle/`.
+- Built `POST /api/vote` with the safety rules that still hold today: device token required, campaign must be live,
+  `clientVoteId` idempotency, per-device row lock + 1.5 s duplicate-tap window, invalid votes kept but excluded from totals.
+- Built the `/vote` kiosk (attract screen, vote, confirmation, ended, unauthorised, offline states), the read-only `/battle`
+  leaderboard, and the admin dashboard (overview, votes with invalidate/restore, daily/hourly analytics, devices, settings,
+  audit log, CSV exports). Added the September countdown and automatic close at Dubai midnight after the end date.
+- Wrote tests (pure logic + DB integration), lint, typecheck, build, and this README.
+
+### 2. Rawia branding, animation, reset, editable contestants ([PR #1](https://github.com/mohamedsikanderadam/rawiacompetition/pull/1))
+- Applied the Rawia brand guide: Light Apricot canvas, Brick Red / Dark Coffee cards, Dusty Olive accents, Open Sans,
+  untouched vector logo (`public/rawia-*.svg`).
+- Added the confirmation animation: the Rawia jug pours a cup, confetti, animated counters.
+- Added the audited **Reset scores** button on the admin overview (type `RESET`; deletes campaign votes, logs removed totals).
+- Made contestant names/codes, headline and subline editable in Settings so the same app can run other campaigns
+  (e.g. Nissan Patrol vs Land Cruiser).
+- Wrote the go-live plan for a `rawia.ae` subdomain (section above).
+
+### 3. Username login ([PR #2](https://github.com/mohamedsikanderadam/rawiacompetition/pull/2))
+- Admin login switched from email to **username** (`admin`); the email is kept only as a contact field.
+- Admin password minimum lowered from 12 to 8 characters at the owner's request.
+
+### 4. Production database and hosting
+- Created a Neon PostgreSQL project; ran `npm run db:migrate` against it, then created the `admin` user and the first
+  kiosk device `RAWIA-KIOSK-01` (token delivered privately — it is shown only once).
+- Imported the GitHub repo into Vercel with env vars `DATABASE_URL`, `SESSION_SECRET`, `SEED_DEMO_DATA=false`,
+  `CAMPAIGN_TIMEZONE=Asia/Dubai`. Every merge to `main` now auto-deploys to `rawiacompetition.vercel.app`.
+- Still to do for the custom domain: add `battle.rawia.ae` in Vercel → Domains and a `CNAME battle → cname.vercel-dns.com`
+  record at the rawia.ae DNS provider.
+
+### 5. Any number of contestants, 2–6 ([PR #3](https://github.com/mohamedsikanderadam/rawiacompetition/pull/3))
+- Replaced the fixed A/B columns with a `contestants` table (code, name, position, unique per campaign).
+  Migration `0003` backfills the existing UOS/AUS rows **before** dropping the old columns; applied to Neon with zero data loss.
+- Settings → Contestants: add / remove / move up / move down, minimum 2, maximum 6, unique codes, all changes audited.
+- Kiosk cards, battle meter (segmented share of vote), `/battle`, admin overview, votes filter, analytics charts, CSV
+  exports and reset all follow the configured list; a six-colour brand palette assigns a colour per position.
+- Winner/tie logic handles multi-way ties; percentages always sum to 100 for any count.
+- Note: changing a contestant's *code* hides votes recorded under the old code (they stay in the database); renaming the
+  full name is always safe.
+
+### 6. Post-release fixes found by a recorded end-to-end browser test
+- [PR #4](https://github.com/mohamedsikanderadam/rawiacompetition/pull/4): admin pages crashed because server pages called
+  a helper from a `"use client"` module; colour helpers moved to `src/lib/contestants.ts`.
+- [PR #5](https://github.com/mohamedsikanderadam/rawiacompetition/pull/5): admin pages taller than the screen rendered
+  their lower half on the cream body background; the layout wrapper now grows with its content. Also added the E2E test
+  procedure in `.agents/skills/testing-rawia-battle/SKILL.md`.
+- The test covered: adding/reordering to 4 contestants, validation (duplicate code, min 2, max 6), voting for each on the
+  kiosk with animation and tally, `/battle` with 4 cards, admin pages and reset to zero, and reverting to 2 contestants.
+
+### Routine for future releases
+1. Branch from `main`, make the change, run `npm run lint && npm run typecheck && npm test && npm run build`.
+2. If `src/db/schema.ts` changed, run `npm run db:generate` and check the SQL in `drizzle/`.
+3. Open a PR; Vercel builds a preview. Merge → production deploy.
+4. If the release added a migration, run `DATABASE_URL=<neon url> npm run db:migrate` once (before or right after merging).
 
 ## Project layout
 
