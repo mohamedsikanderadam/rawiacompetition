@@ -315,20 +315,20 @@ function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: st
   const n = campaign.contestants.length;
 
   return (
-    <div className="flex flex-1 flex-col px-5 py-5 md:px-12 md:py-8">
+    <div className="flex flex-1 flex-col px-5 py-5 md:px-12 md:py-8 short:px-8 short:py-5">
       <KioskHeader state={state} />
 
-      <div className="mt-6 md:mt-10">
+      <div className="mt-6 md:mt-10 short:mt-4">
         <p className="eyebrow text-brick">Rawia Cafe presents</p>
-        <h1 className="mt-2 font-display text-5xl leading-[0.95] md:text-8xl">
+        <h1 className="mt-2 font-display text-5xl leading-[0.95] md:text-8xl short:text-5xl">
           {campaign.headline}
           <br />
           <span className="text-brick">{campaign.headlineAccent}</span>
         </h1>
-        <p className="mt-4 max-w-2xl text-lg text-ink-soft md:text-2xl">{campaign.subline}</p>
+        <p className="mt-4 max-w-2xl text-lg text-ink-soft md:text-2xl short:mt-2 short:text-base">{campaign.subline}</p>
       </div>
 
-      <div className={`mt-6 grid flex-1 gap-3 md:mt-10 md:gap-5 ${cardGridClass(n)}`}>
+      <div className={`mt-6 grid flex-1 gap-3 md:mt-10 md:gap-5 short:mt-4 short:gap-4 ${cardGridClass(n)}`}>
         {campaign.contestants.map((c, i) => (
           <VoteButton
             key={c.code}
@@ -344,7 +344,7 @@ function VoteScreen({ state, pending, onVote }: { state: KioskState; pending: st
         ))}
       </div>
 
-      <footer className="mt-5 flex flex-col gap-3 md:mt-8 md:flex-row md:items-end md:justify-between">
+      <footer className="mt-5 flex flex-col gap-3 md:mt-8 md:flex-row md:items-end md:justify-between short:mt-4">
         {showScores ? (
           <div className="w-full md:max-w-xl">
             <BattleMeter board={board} size="sm" />
@@ -390,7 +390,7 @@ function VoteButton({
       onClick={() => onVote(code)}
       style={{ background: contestantColor(index) }}
       className={`relative flex flex-col justify-between rounded-[2rem] text-left text-apricot shadow-2xl shadow-ink/20 transition-transform duration-150 active:scale-[0.97] disabled:opacity-80 ${
-        dense ? "min-h-[18vh] p-4 md:min-h-[22vh] md:p-6" : compact ? "min-h-[20vh] p-5 md:min-h-[30vh] md:p-7" : "min-h-[26vh] p-6 md:min-h-[38vh] md:p-9"
+        dense ? "min-h-[18vh] p-4 md:min-h-[22vh] md:p-6 short:min-h-0 short:p-4" : compact ? "min-h-[20vh] p-5 md:min-h-[30vh] md:p-7 short:min-h-0 short:p-5" : "min-h-[26vh] p-6 md:min-h-[38vh] md:p-9 short:min-h-0 short:p-6"
       } ${isPending ? "animate-pulse-slow" : ""}`}
     >
       <div className="flex items-start justify-between">
@@ -398,10 +398,10 @@ function VoteButton({
         {votes !== null && <span className={`font-display tabular ${dense ? "text-xl md:text-2xl" : "text-2xl md:text-4xl"}`}>{votes.toLocaleString("en-US")}</span>}
       </div>
       <div>
-        <span className={`block font-display leading-none ${dense ? "text-4xl md:text-6xl" : compact ? "text-5xl md:text-8xl" : "text-7xl md:text-[9rem]"}`}>{code}</span>
-        <span className={`mt-3 block font-medium opacity-90 ${dense ? "text-sm md:text-lg" : "text-lg md:text-2xl"}`}>{name}</span>
+        <span className={`block font-display leading-none ${dense ? "text-4xl md:text-6xl short:text-4xl" : compact ? "text-5xl md:text-8xl short:text-5xl" : "text-7xl md:text-[9rem] short:text-7xl"}`}>{code}</span>
+        <span className={`mt-3 block font-medium opacity-90 ${dense ? "text-sm md:text-lg short:text-sm" : "text-lg md:text-2xl short:text-base"}`}>{name}</span>
       </div>
-      <span className="eyebrow mt-4 inline-flex w-fit items-center gap-2 rounded-full bg-apricot/15 px-4 py-2">
+      <span className="eyebrow mt-4 short:mt-3 inline-flex w-fit items-center gap-2 rounded-full bg-apricot/15 px-4 py-2">
         {isPending ? "Recording…" : `Tap to vote ${code}`}
         {!isPending && <span aria-hidden>→</span>}
       </span>
