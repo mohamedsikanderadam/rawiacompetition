@@ -9,7 +9,7 @@ import { generateDeviceToken, hashToken } from "../src/lib/votes";
 /**
  * Idempotent seed:
  *  - ensures the campaign row exists
- *  - creates the initial admin (ADMIN_EMAIL / ADMIN_PASSWORD) if missing
+ *  - creates the initial admin (ADMIN_USERNAME / ADMIN_EMAIL / ADMIN_PASSWORD) if missing
  *  - registers RAWIA-KIOSK-01 (token from KIOSK_SEED_TOKEN or random, printed once)
  *  - optionally loads demo votes (SEED_DEMO_DATA=true, only when the campaign has no votes yet)
  */
@@ -17,17 +17,18 @@ async function main() {
   const campaign = await getCampaign();
   console.log(`Campaign: ${campaign.name} (${campaign.startDate} → ${campaign.endDate}) mode=${campaign.mode}`);
 
+  const username = (process.env.ADMIN_USERNAME || "admin").trim().toLowerCase();
   const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD || "";
-  if (!email || password.length < 12) {
-    throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD (>= 12 chars) must be set to seed the admin account.");
+  if (!email || password.length < 8) {
+    throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD (>= 8 chars) must be set to seed the admin account.");
   }
-  const existingAdmin = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.email, email)).limit(1);
+  const existingAdmin = await db.select().from(schema.adminUsers).where(eq(schema.adminUsers.username, username)).limit(1);
   if (existingAdmin[0]) {
-    console.log(`Admin exists: ${email}`);
+    console.log(`Admin exists: ${username} (${existingAdmin[0].email})`);
   } else {
-    await db.insert(schema.adminUsers).values({ email, passwordHash: await hashPassword(password) });
-    console.log(`Admin created: ${email}`);
+    await db.insert(schema.adminUsers).values({ username, email, passwordHash: await hashPassword(password) });
+    console.log(`Admin created: ${username} (${email})`);
   }
 
   const identifier = "RAWIA-KIOSK-01";

@@ -14,7 +14,7 @@ let campaign: Campaign;
 let device: Device;
 let inactiveDevice: Device;
 const token = generateDeviceToken();
-const admin = { id: 0, email: "test-admin@rawia.cafe" };
+const admin = { id: 0, username: "test-admin", email: "test-admin@rawia.cafe" };
 let adminId = 0;
 
 const at = (iso: string) => new Date(iso);
@@ -41,7 +41,7 @@ beforeAll(async () => {
   inactiveDevice = (
     await db.insert(schema.devices).values({ deviceName: "Old Kiosk", deviceIdentifier: `TEST-OLD-${Date.now()}`, tokenHash: hashToken(generateDeviceToken()), active: false }).returning()
   )[0];
-  const a = (await db.insert(schema.adminUsers).values({ email: `test-${Date.now()}@rawia.cafe`, passwordHash: "x" }).returning())[0];
+  const a = (await db.insert(schema.adminUsers).values({ username: `test-${Date.now()}`, email: `test-${Date.now()}@rawia.cafe`, passwordHash: "x" }).returning())[0];
   adminId = a.id;
   admin.id = a.id;
   admin.email = a.email;

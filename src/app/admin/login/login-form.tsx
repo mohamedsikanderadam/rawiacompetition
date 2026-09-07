@@ -9,8 +9,8 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <form action={action} className="mt-6 space-y-4">
       <input type="hidden" name="next" value={next} />
-      <Field label="Email">
-        <input name="email" type="email" required autoComplete="username" className={inputClass} />
+      <Field label="Username">
+        <input name="username" type="text" required autoComplete="username" autoCapitalize="none" className={inputClass} />
       </Field>
       <Field label="Password">
         <input name="password" type="password" required autoComplete="current-password" className={inputClass} />

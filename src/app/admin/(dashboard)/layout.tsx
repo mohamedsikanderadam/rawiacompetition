@@ -25,7 +25,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <AdminNav />
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-white/10 px-5 py-4 text-sm">
           <span className="truncate text-cream/60" title={session.email}>
-            {session.email}
+            {session.username}
           </span>
           <form action={logoutAction}>
             <button type="submit" className="text-cream/70 hover:text-cream">
