@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import type { Campaign, Device } from "@/db/schema";
-import { countdownLabel, determineWinner, getCampaignStatus, type CampaignStatus, type Scoreboard, type Winner } from "./battle";
-import { getScoreboard } from "./campaign";
+import { countdownLabel, determineWinner, getCampaignStatus, type CampaignStatus, type Contestant, type Scoreboard, type Winner } from "./battle";
+import { getContestants, getScoreboard } from "./campaign";
 import { findDeviceByToken } from "./votes";
 
 export const KIOSK_COOKIE = "rawia_kiosk";
@@ -21,8 +21,8 @@ export type PublicBattleState = {
     name: string;
     startDate: string;
     endDate: string;
-    a: { code: string; name: string };
-    b: { code: string; name: string };
+    /** 2–6 contestants in display order. */
+    contestants: Contestant[];
     headline: string;
     headlineAccent: string;
     subline: string;
@@ -37,14 +37,14 @@ export type PublicBattleState = {
 
 export async function buildPublicState(campaign: Campaign, now = new Date()): Promise<PublicBattleState> {
   const status = getCampaignStatus(campaign, now);
-  const scoreboard = await getScoreboard(campaign);
+  const contestants = (await getContestants(campaign)).map((c) => ({ code: c.code, name: c.name }));
+  const scoreboard = await getScoreboard(campaign, contestants);
   return {
     campaign: {
       name: campaign.name,
       startDate: campaign.startDate,
       endDate: campaign.endDate,
-      a: { code: campaign.universityACode, name: campaign.universityAName },
-      b: { code: campaign.universityBCode, name: campaign.universityBName },
+      contestants,
       headline: campaign.headline,
       headlineAccent: campaign.headlineAccent,
       subline: campaign.subline,
@@ -75,7 +75,13 @@ export async function buildKioskState(campaign: Campaign, device: Device, now = 
   return {
     ...pub,
     scoreboard: hideScores
-      ? { ...pub.scoreboard, a: { ...pub.scoreboard.a, votes: 0, pct: 50 }, b: { ...pub.scoreboard.b, votes: 0, pct: 50 }, total: 0, leader: null, lead: 0 }
+      ? {
+          ...pub.scoreboard,
+          entries: pub.scoreboard.entries.map((e) => ({ ...e, votes: 0, pct: Math.round(1000 / pub.scoreboard.entries.length) / 10 })),
+          total: 0,
+          leader: null,
+          lead: 0,
+        }
       : pub.scoreboard,
     device: { name: device.deviceName, identifier: device.deviceIdentifier, active: device.active },
     settings: {

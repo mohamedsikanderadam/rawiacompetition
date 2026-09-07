@@ -1,13 +1,37 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { Campaign } from "@/db/schema";
-import type { CampaignPhase } from "@/lib/battle";
-import { Card, Field, Toggle, buttonClass, inputClass } from "@/components/admin/ui";
+import { MAX_CONTESTANTS, MIN_CONTESTANTS, type CampaignPhase, type Contestant } from "@/lib/battle";
+import { Card, Field, Toggle, buttonClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
+import { CONTESTANT_COLORS, contestantColor, contestantLabel } from "@/components/battle/scoreboard";
 import { saveSettingsAction } from "../../actions";
 
-export function SettingsForm({ campaign, phase }: { campaign: Campaign; phase: CampaignPhase }) {
+const COLOR_NAMES = ["Brick Red", "Dark Coffee", "Dusty Olive", "Tan", "Deep Brick", "Pitch Black"] as const;
+
+type Row = Contestant & { key: number };
+
+export function SettingsForm({ campaign, contestants, phase }: { campaign: Campaign; contestants: Contestant[]; phase: CampaignPhase }) {
   const [result, action, pending] = useActionState(saveSettingsAction, null);
+  const [rows, setRows] = useState<Row[]>(() => contestants.map((c, key) => ({ ...c, key })));
+  const [nextKey, setNextKey] = useState(contestants.length);
+
+  const addRow = () => {
+    if (rows.length >= MAX_CONTESTANTS) return;
+    setRows([...rows, { key: nextKey, code: "", name: "" }]);
+    setNextKey(nextKey + 1);
+  };
+  const removeRow = (key: number) => {
+    if (rows.length <= MIN_CONTESTANTS) return;
+    setRows(rows.filter((r) => r.key !== key));
+  };
+  const move = (from: number, to: number) => {
+    if (to < 0 || to >= rows.length) return;
+    const next = [...rows];
+    const [r] = next.splice(from, 1);
+    next.splice(to, 0, r);
+    setRows(next);
+  };
   return (
     <form action={action} className="space-y-6">
       <Card title="Campaign">
@@ -24,34 +48,77 @@ export function SettingsForm({ campaign, phase }: { campaign: Campaign; phase: C
         </div>
       </Card>
 
-      <Card title="Contestants">
+      <Card title={`Contestants (${rows.length} of ${MAX_CONTESTANTS})`}>
         <p className="mb-4 text-sm text-cream/70">
-          Any two names work — universities today, <em>Nissan Patrol vs Land Cruiser</em> tomorrow. Short codes appear on the big cards (e.g. <code>UOS</code>,{" "}
-          <code>PATROL</code>); full names appear beneath them.
+          Add between {MIN_CONTESTANTS} and {MAX_CONTESTANTS} contestants — universities today, <em>Nissan Patrol vs Land Cruiser</em> tomorrow. Short codes appear on the big
+          cards (e.g. <code>UOS</code>, <code>PATROL</code>); full names appear beneath them. Cards are shown in this order.
         </p>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-3 rounded-xl border border-uos/40 p-4">
-            <p className="text-xs uppercase tracking-widest text-uos">Contestant 01 · Brick Red card</p>
-            <Field label="Short code (max 12)">
-              <input name="universityACode" defaultValue={campaign.universityACode} required maxLength={12} className={inputClass} />
-            </Field>
-            <Field label="Full name">
-              <input name="universityAName" defaultValue={campaign.universityAName} required className={inputClass} />
-            </Field>
-          </div>
-          <div className="space-y-3 rounded-xl border border-aus/40 p-4">
-            <p className="text-xs uppercase tracking-widest text-aus">Contestant 02 · Dark Coffee card</p>
-            <Field label="Short code (max 12)">
-              <input name="universityBCode" defaultValue={campaign.universityBCode} required maxLength={12} className={inputClass} />
-            </Field>
-            <Field label="Full name">
-              <input name="universityBName" defaultValue={campaign.universityBName} required className={inputClass} />
-            </Field>
-          </div>
+          {rows.map((row, i) => (
+            <div key={row.key} className="space-y-3 rounded-xl border p-4" style={{ borderColor: `${contestantColor(i, "dark")}66` }}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-widest" style={{ color: contestantColor(i, "dark") }}>
+                  {contestantLabel(i)} · {COLOR_NAMES[i % COLOR_NAMES.length]} card
+                </p>
+                <div className="flex gap-1 text-xs">
+                  <button type="button" onClick={() => move(i, i - 1)} disabled={i === 0} className="rounded px-2 py-1 text-cream/70 hover:bg-white/10 disabled:opacity-30" aria-label="Move up">
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(i, i + 1)}
+                    disabled={i === rows.length - 1}
+                    className="rounded px-2 py-1 text-cream/70 hover:bg-white/10 disabled:opacity-30"
+                    aria-label="Move down"
+                  >
+                    ↓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(row.key)}
+                    disabled={rows.length <= MIN_CONTESTANTS}
+                    className="rounded px-2 py-1 text-red-300 hover:bg-red-500/10 disabled:opacity-30"
+                    title={rows.length <= MIN_CONTESTANTS ? `Keep at least ${MIN_CONTESTANTS} contestants` : "Remove contestant"}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+              <Field label="Short code (max 12)">
+                <input
+                  name="contestantCode"
+                  value={row.code}
+                  onChange={(e) => setRows(rows.map((r) => (r.key === row.key ? { ...r, code: e.target.value } : r)))}
+                  required
+                  maxLength={12}
+                  placeholder="e.g. UOS"
+                  className={`${inputClass} uppercase`}
+                />
+              </Field>
+              <Field label="Full name">
+                <input
+                  name="contestantName"
+                  value={row.name}
+                  onChange={(e) => setRows(rows.map((r) => (r.key === row.key ? { ...r, name: e.target.value } : r)))}
+                  required
+                  maxLength={120}
+                  placeholder="e.g. University of Sharjah"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center gap-3">
+          <button type="button" onClick={addRow} disabled={rows.length >= MAX_CONTESTANTS} className={buttonGhostClass}>
+            + Add contestant
+          </button>
+          {rows.length >= MAX_CONTESTANTS && <span className="text-xs text-cream/50">Maximum of {MAX_CONTESTANTS} reached.</span>}
         </div>
         <p className="mt-3 text-xs text-cream/50">
-          Votes are stored under the short code. Changing a code mid-campaign hides votes recorded under the old code — use <strong>Reset scores</strong> on the Overview
-          when switching to a new campaign.
+          Votes are stored under the short code. Removing a contestant or changing a code mid-campaign hides votes recorded under the old code — use{" "}
+          <strong>Reset scores</strong> on the Overview when switching to a new campaign. Card colours follow the Rawia palette in this order:{" "}
+          {CONTESTANT_COLORS.map((_, i) => COLOR_NAMES[i]).join(", ")}.
         </p>
       </Card>
 
@@ -68,7 +135,7 @@ export function SettingsForm({ campaign, phase }: { campaign: Campaign; phase: C
           </Field>
         </div>
         <p className="mt-3 text-xs text-cream/50">
-          Shown on /vote and /battle as “<span className="text-cream">{campaign.headline}</span> <span className="text-uos">{campaign.headlineAccent}</span>”. For a car
+          Shown on /vote and /battle as “<span className="text-cream">{campaign.headline}</span> <span className="text-[#e0644f]">{campaign.headlineAccent}</span>”. For a car
           campaign try “Which legend / rules the dunes?”.
         </p>
       </Card>
@@ -79,7 +146,7 @@ export function SettingsForm({ campaign, phase }: { campaign: Campaign; phase: C
             name="showScoresOnVote"
             label="Show live scores on voting screen"
             defaultChecked={campaign.showScoresOnVote}
-            hint="OFF: voters only see the headline and the two cards, with no numbers."
+            hint="OFF: voters only see the headline and the contestant cards, with no numbers."
           />
           <Toggle
             name="showConfirmationScore"

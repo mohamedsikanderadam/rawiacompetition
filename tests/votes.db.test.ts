@@ -7,7 +7,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { db, schema } from "@/db";
 import type { Campaign, Device } from "@/db/schema";
 import { buildScoreboard } from "@/lib/battle";
-import { getTotals } from "@/lib/campaign";
+import { getContestants, getScoreboard, getTotals } from "@/lib/campaign";
+import { resetScores } from "@/lib/demo";
 import { castVote, findDeviceByToken, generateDeviceToken, hashToken, invalidateVote, restoreVote, DUPLICATE_WINDOW_MS } from "@/lib/votes";
 
 let campaign: Campaign;
@@ -29,14 +30,15 @@ beforeAll(async () => {
         name: "Test Battle",
         startDate: "2026-09-01",
         endDate: "2026-09-30",
-        universityACode: "UOS",
-        universityAName: "University of Sharjah",
-        universityBCode: "AUS",
-        universityBName: "American University of Sharjah",
         mode: "live",
       })
       .returning()
   )[0];
+  await db.insert(schema.contestants).values([
+    { campaignId: campaign.id, code: "UOS", name: "University of Sharjah", position: 0 },
+    { campaignId: campaign.id, code: "AUS", name: "American University of Sharjah", position: 1 },
+    { campaignId: campaign.id, code: "AUD", name: "American University in Dubai", position: 2 },
+  ]);
   device = (await db.insert(schema.devices).values({ deviceName: "Test Kiosk", deviceIdentifier: `TEST-KIOSK-${Date.now()}`, tokenHash: hashToken(token) }).returning())[0];
   inactiveDevice = (
     await db.insert(schema.devices).values({ deviceName: "Old Kiosk", deviceIdentifier: `TEST-OLD-${Date.now()}`, tokenHash: hashToken(generateDeviceToken()), active: false }).returning()
@@ -53,6 +55,7 @@ afterAll(async () => {
   await db.delete(schema.devices).where(eq(schema.devices.id, device.id));
   await db.delete(schema.devices).where(eq(schema.devices.id, inactiveDevice.id));
   await db.delete(schema.adminUsers).where(eq(schema.adminUsers.id, adminId));
+  await db.delete(schema.contestants).where(eq(schema.contestants.campaignId, campaign.id));
   await db.delete(schema.campaigns).where(eq(schema.campaigns.id, campaign.id));
 });
 
@@ -65,12 +68,15 @@ describe("device tokens", () => {
 });
 
 describe("castVote", () => {
-  it("records a UOS vote and an AUS vote as individual rows", async () => {
+  it("records one row per vote for every configured contestant", async () => {
     const r1 = await castVote({ campaign, device, university: "UOS", ...ids(), now: at("2026-09-03T10:00:00Z") });
     const r2 = await castVote({ campaign, device, university: "AUS", ...ids(), now: at("2026-09-03T10:00:05Z") });
+    const r3 = await castVote({ campaign, device, university: "AUD", ...ids(), now: at("2026-09-03T10:00:10Z") });
     expect(r1.ok && r1.vote.university).toBe("UOS");
     expect(r2.ok && r2.vote.university).toBe("AUS");
-    expect(await getTotals(campaign)).toEqual({ a: 1, b: 1 });
+    expect(r3.ok && r3.vote.university).toBe("AUD");
+    expect(await getTotals(campaign)).toEqual({ UOS: 1, AUS: 1, AUD: 1 });
+    expect((await getContestants(campaign)).map((c) => c.code)).toEqual(["UOS", "AUS", "AUD"]);
   });
 
   it("treats a retried request with the same clientVoteId as the same vote", async () => {
@@ -79,7 +85,7 @@ describe("castVote", () => {
     const retry = await castVote({ ...input, now: at("2026-09-03T11:00:00.300Z") });
     expect(first.ok && retry.ok && retry.vote.id).toBe(first.ok && first.vote.id);
     expect(retry.ok && retry.duplicate).toBe(true);
-    expect(await getTotals(campaign)).toEqual({ a: 2, b: 1 });
+    expect(await getTotals(campaign)).toEqual({ UOS: 2, AUS: 1, AUD: 1 });
   });
 
   it("rejects a second tap from the same device inside the duplicate window", async () => {
@@ -90,7 +96,7 @@ describe("castVote", () => {
     expect(ok.ok).toBe(true);
     expect(!tooFast.ok && tooFast.code).toBe("too_fast");
     expect(later.ok).toBe(true);
-    expect(await getTotals(campaign)).toEqual({ a: 2, b: 3 });
+    expect(await getTotals(campaign)).toEqual({ UOS: 2, AUS: 3, AUD: 1 });
   });
 
   it("survives rapid concurrent taps: exactly one vote is stored", async () => {
@@ -99,7 +105,7 @@ describe("castVote", () => {
     const results = await Promise.all(Array.from({ length: 8 }, () => castVote({ campaign, device, university: "UOS", ...ids(), now: t })));
     expect(results.filter((r) => r.ok).length).toBe(1);
     expect(results.filter((r) => !r.ok && r.code === "too_fast").length).toBe(7);
-    expect((await getTotals(campaign)).a).toBe(before.a + 1);
+    expect((await getTotals(campaign)).UOS).toBe(before.UOS + 1);
   });
 
   it("rejects inactive devices, invalid universities and bad ids", async () => {
@@ -128,11 +134,11 @@ describe("vote invalidation", () => {
     const before = await getTotals(campaign);
     const r = await castVote({ campaign, device, university: "UOS", ...ids(), now: at("2026-09-30T12:00:00Z") });
     if (!r.ok) throw new Error("vote failed");
-    expect((await getTotals(campaign)).a).toBe(before.a + 1);
+    expect((await getTotals(campaign)).UOS).toBe(before.UOS + 1);
 
     const invalidated = await invalidateVote({ voteId: r.vote.id, admin, reason: "Accidental duplicate" });
     expect(invalidated?.status).toBe("invalid");
-    expect((await getTotals(campaign)).a).toBe(before.a);
+    expect((await getTotals(campaign)).UOS).toBe(before.UOS);
 
     const log = await db.select().from(schema.auditLogs).where(eq(schema.auditLogs.voteId, r.vote.id));
     expect(log.some((l) => l.action === "vote.invalidated" && l.reason === "Accidental duplicate" && l.adminEmail === admin.email)).toBe(true);
@@ -142,13 +148,29 @@ describe("vote invalidation", () => {
 
     const restored = await restoreVote({ voteId: r.vote.id, admin, reason: "was valid after all" });
     expect(restored?.status).toBe("valid");
-    expect((await getTotals(campaign)).a).toBe(before.a + 1);
+    expect((await getTotals(campaign)).UOS).toBe(before.UOS + 1);
   });
 
   it("leaderboard from database totals matches the pure calculation", async () => {
     const totals = await getTotals(campaign);
-    const board = buildScoreboard(campaign, totals);
-    expect(board.total).toBe(totals.a + totals.b);
-    expect(board.leader).toBe(totals.a === totals.b ? null : totals.a > totals.b ? "UOS" : "AUS");
+    const contestants = await getContestants(campaign);
+    const board = buildScoreboard(contestants, totals);
+    expect(board).toEqual(await getScoreboard(campaign));
+    expect(board.total).toBe(Object.values(totals).reduce((s, n) => s + n, 0));
+    const sorted = Object.entries(totals).sort((x, y) => y[1] - x[1]);
+    expect(board.leader).toBe(sorted[0][1] === sorted[1][1] ? null : sorted[0][0]);
+  });
+});
+
+describe("reset scores", () => {
+  it("deletes every vote and reports removed valid votes per contestant", async () => {
+    const before = await getTotals(campaign);
+    const result = await resetScores(campaign);
+    expect(result.removedValid).toEqual(before);
+    expect(result.removed).toBeGreaterThanOrEqual(Object.values(before).reduce((s, n) => s + n, 0));
+    expect(await getTotals(campaign)).toEqual({});
+    const board = await getScoreboard(campaign);
+    expect(board.entries.map((e) => e.votes)).toEqual([0, 0, 0]);
+    expect(board.entries.reduce((s, e) => s + e.pct, 0)).toBeCloseTo(100, 5);
   });
 });

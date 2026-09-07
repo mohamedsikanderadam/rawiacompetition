@@ -9,12 +9,15 @@ export function Card({ title, children, className = "" }: { title?: ReactNode; c
   );
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "a" | "b" | "gold" }) {
-  const color = tone === "a" ? "text-uos" : tone === "b" ? "text-aus" : tone === "gold" ? "text-gold" : "text-cream";
+/** `color` (a CSS colour) overrides `tone`; used for per-contestant colouring. */
+export function Stat({ label, value, hint, tone, color }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "gold"; color?: string }) {
+  const cls = color ? "" : tone === "gold" ? "text-gold" : "text-cream";
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cream/50">{label}</p>
-      <p className={`mt-2 font-display text-4xl tabular ${color}`}>{value}</p>
+      <p className={`mt-2 font-display text-4xl tabular ${cls}`} style={color ? { color } : undefined}>
+        {value}
+      </p>
       {hint && <p className="mt-1 text-sm text-cream/60">{hint}</p>}
     </div>
   );
@@ -67,9 +70,14 @@ export function Table({ head, children }: { head: ReactNode[]; children: ReactNo
   );
 }
 
-export function UniBadge({ code, a }: { code: string; a: string }) {
-  const cls = code === a ? "bg-uos/20 text-uos" : "bg-aus/20 text-aus";
-  return <span className={`inline-block rounded-md px-2 py-0.5 font-display text-xs ${cls}`}>{code}</span>;
+/** Contestant code chip; `color` is the contestant's on-dark colour (grey when the code is no longer configured). */
+export function UniBadge({ code, color }: { code: string; color?: string }) {
+  const c = color ?? "#a6a68a";
+  return (
+    <span className="inline-block rounded-md px-2 py-0.5 font-display text-xs" style={{ color: c, background: `${c}33` }}>
+      {code}
+    </span>
+  );
 }
 
 export function StatusBadge({ status }: { status: string }) {

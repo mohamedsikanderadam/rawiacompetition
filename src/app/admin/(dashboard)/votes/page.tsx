@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { and, count, desc, eq, gte, lt, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { getCampaign } from "@/lib/campaign";
+import { getCampaign, getContestants } from "@/lib/campaign";
+import { contestantColor } from "@/components/battle/scoreboard";
 import { formatLocalDate, formatLocalTime, localDateKey, localDayEnd, localDayStart } from "@/lib/time";
 import { Card, StatusBadge, Table, UniBadge, buttonDangerClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
 import { invalidateVoteAction, restoreVoteAction } from "../../actions";
@@ -16,6 +17,11 @@ export default async function VotesPage({ searchParams }: PageProps<"/admin/vote
   const sp = await searchParams;
   const campaign = await getCampaign();
   const devices = await db.select().from(schema.devices).orderBy(schema.devices.id);
+  const contestants = await getContestants(campaign);
+  const colorOf = (code: string) => {
+    const i = contestants.findIndex((c) => c.code === code);
+    return i < 0 ? undefined : contestantColor(i, "dark");
+  };
 
   const university = str(sp.university);
   const date = str(sp.date);
@@ -81,8 +87,11 @@ export default async function VotesPage({ searchParams }: PageProps<"/admin/vote
         <form method="get" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
           <select name="university" defaultValue={university} className={inputClass}>
             <option value="">All contestants</option>
-            <option value={campaign.universityACode}>{campaign.universityACode}</option>
-            <option value={campaign.universityBCode}>{campaign.universityBCode}</option>
+            {contestants.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code}
+              </option>
+            ))}
           </select>
           <input type="date" name="date" defaultValue={date} className={inputClass} max={localDateKey()} />
           <input type="time" name="from" defaultValue={from} className={inputClass} title="From time (requires a date)" />
@@ -125,7 +134,7 @@ export default async function VotesPage({ searchParams }: PageProps<"/admin/vote
             <td className="px-4 py-3 whitespace-nowrap">{formatLocalDate(v.createdAt)}</td>
             <td className="px-4 py-3 font-mono whitespace-nowrap">{formatLocalTime(v.createdAt)}</td>
             <td className="px-4 py-3">
-              <UniBadge code={v.university} a={campaign.universityACode} />
+              <UniBadge code={v.university} color={colorOf(v.university)} />
             </td>
             <td className="px-4 py-3">
               <span title={v.deviceName}>{v.deviceIdentifier}</span>

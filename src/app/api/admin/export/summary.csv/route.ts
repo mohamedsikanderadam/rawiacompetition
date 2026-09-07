@@ -21,10 +21,9 @@ export async function GET() {
   const csv = toCsv([
     ["Field", "Value"],
     ["Campaign", campaign.name],
-    [`${board.a.code} Total`, board.a.votes],
-    [`${board.b.code} Total`, board.b.votes],
+    ...board.entries.map((e) => [`${e.code} Total (${e.name})`, e.votes] as (string | number)[]),
     ["Total Votes", board.total],
-    [final ? "Winner" : "Current Leader", "tie" in winner ? "TIE" : winner.code],
+    [final ? "Winner" : "Current Leader", "tie" in winner ? `TIE (${winner.codes.join(" / ")})` : winner.code],
     [final ? "Winning Margin" : "Current Margin", winner.margin],
     ["Campaign Start", campaign.startDate],
     ["Campaign End", campaign.endDate],

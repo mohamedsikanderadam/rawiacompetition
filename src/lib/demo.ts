@@ -2,9 +2,16 @@ import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import { db, schema } from "@/db";
 import type { Campaign, Device } from "@/db/schema";
+import type { Totals } from "./battle";
+import { getContestants } from "./campaign";
 import { addDays, daysBetween, localDateKey, localDayStart } from "./time";
 
-export const DEMO_TARGET = { a: 327, b: 294 } as const;
+/** Demo vote counts per contestant, in display order (extra contestants beyond the list get the last value). */
+export const DEMO_TARGETS = [327, 294, 241, 188, 152, 97] as const;
+
+export function demoTargetFor(index: number): number {
+  return DEMO_TARGETS[Math.min(index, DEMO_TARGETS.length - 1)];
+}
 
 /** Deterministic PRNG so demo data is stable between runs. */
 function mulberry32(seed: number) {
@@ -31,9 +38,10 @@ function pickHour(rand: () => number): number {
 
 /**
  * Deletes every vote (and every audit entry that references a vote) for the campaign and generates
- * demo votes spread across the campaign dates up to today, ending at UOS 327 / AUS 294.
+ * demo votes spread across the campaign dates up to today, ending at DEMO_TARGETS per contestant.
  */
-export async function resetDemoData(campaign: Campaign, device: Device, now: Date = new Date()): Promise<{ a: number; b: number }> {
+export async function resetDemoData(campaign: Campaign, device: Device, now: Date = new Date()): Promise<Totals> {
+  const contestants = await getContestants(campaign);
   const rand = mulberry32(20260901);
   const today = localDateKey(now);
   const first = campaign.startDate;
@@ -60,8 +68,11 @@ export async function resetDemoData(campaign: Campaign, device: Device, now: Dat
       });
     }
   };
-  buildVotes(campaign.universityACode, DEMO_TARGET.a);
-  buildVotes(campaign.universityBCode, DEMO_TARGET.b);
+  const targets: Totals = {};
+  contestants.forEach((c, i) => {
+    targets[c.code] = demoTargetFor(i);
+    buildVotes(c.code, targets[c.code]);
+  });
   rows.sort((x, y) => (x.createdAt as Date).getTime() - (y.createdAt as Date).getTime());
 
   await db.transaction(async (tx) => {
@@ -69,26 +80,24 @@ export async function resetDemoData(campaign: Campaign, device: Device, now: Dat
     for (let i = 0; i < rows.length; i += 200) await tx.insert(schema.votes).values(rows.slice(i, i + 200));
     await tx.update(schema.campaigns).set({ mode: "demo", updatedAt: now }).where(eq(schema.campaigns.id, campaign.id));
   });
-  return { a: DEMO_TARGET.a, b: DEMO_TARGET.b };
+  return targets;
 }
 
-/** Wipes every vote for the campaign so both sides read 0. Mode is unchanged. */
-export async function resetScores(campaign: Campaign, now: Date = new Date()): Promise<{ removed: number; a: number; b: number }> {
+/** Wipes every vote for the campaign so every contestant reads 0. Mode is unchanged. */
+export async function resetScores(campaign: Campaign, now: Date = new Date()): Promise<{ removed: number; removedValid: Totals }> {
   return db.transaction(async (tx) => {
     const deleted = await tx
       .delete(schema.votes)
       .where(eq(schema.votes.campaignId, campaign.id))
       .returning({ university: schema.votes.university, status: schema.votes.status });
     await tx.update(schema.campaigns).set({ updatedAt: now }).where(eq(schema.campaigns.id, campaign.id));
-    return {
-      removed: deleted.length,
-      a: deleted.filter((v) => v.status === "valid" && v.university === campaign.universityACode).length,
-      b: deleted.filter((v) => v.status === "valid" && v.university === campaign.universityBCode).length,
-    };
+    const removedValid: Totals = {};
+    for (const v of deleted) if (v.status === "valid") removedValid[v.university] = (removedValid[v.university] ?? 0) + 1;
+    return { removed: deleted.length, removedValid };
   });
 }
 
-/** Clears all votes for the campaign and switches to live mode (UOS 0 / AUS 0). */
+/** Clears all votes for the campaign and switches to live mode (everyone at 0). */
 export async function startLiveCampaign(campaign: Campaign, now: Date = new Date()): Promise<number> {
   return db.transaction(async (tx) => {
     const deleted = await tx.delete(schema.votes).where(eq(schema.votes.campaignId, campaign.id)).returning({ id: schema.votes.id });
