@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const campaign = await getCampaign();
 
   return (
-    <div className="bg-admin flex min-h-screen flex-col md:flex-row">
+    <div className="bg-admin flex min-h-screen flex-none flex-col md:flex-row">
       <aside className="flex w-full flex-col border-b border-white/10 bg-black/40 md:min-h-screen md:w-64 md:border-b-0 md:border-r">
         <div className="px-5 py-5">
           <p className="text-xs uppercase tracking-[0.3em] text-cream/50">Rawia Cafe</p>
