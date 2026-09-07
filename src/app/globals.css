@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Landscape tablets / small laptops: wide but not tall (e.g. iPad 1024×768, 1180×820). */
+@custom-variant short (@media (min-width: 768px) and (max-height: 900px));
+
 /* Rawia brand palette (Brand Guide §03) */
 :root {
   --apricot: #f5f0e8;

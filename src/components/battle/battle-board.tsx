@@ -40,7 +40,7 @@ export function BattleBoard({ initial }: { initial: PublicBattleState }) {
   const dense = n > 4;
 
   return (
-    <main className="bg-arena flex min-h-screen flex-col px-5 py-5 text-ink md:px-12 md:py-8">
+    <main className="bg-arena flex min-h-screen flex-col px-5 py-5 text-ink md:px-12 md:py-8 short:px-8 short:py-5">
       <header className="flex items-start justify-between">
         <Brand />
         <div className="eyebrow text-right leading-relaxed text-ink-soft">
@@ -50,9 +50,9 @@ export function BattleBoard({ initial }: { initial: PublicBattleState }) {
         </div>
       </header>
 
-      <section className="mt-8 md:mt-12">
+      <section className="mt-8 md:mt-12 short:mt-4">
         <p className="eyebrow text-brick">Rawia Cafe presents</p>
-        <h1 className="mt-2 font-display text-5xl leading-[0.95] md:text-8xl">
+        <h1 className="mt-2 font-display text-5xl leading-[0.95] md:text-8xl short:text-5xl">
           {campaign.headline}
           <br />
           <span className="text-brick">{campaign.headlineAccent}</span>
@@ -72,41 +72,41 @@ export function BattleBoard({ initial }: { initial: PublicBattleState }) {
         </section>
       )}
 
-      <section className={`mt-8 grid flex-1 gap-3 md:mt-12 md:gap-5 ${cardGridClass(n)}`}>
+      <section className={`mt-8 grid flex-1 gap-3 md:mt-12 md:gap-5 short:mt-5 short:gap-4 ${cardGridClass(n)}`}>
         {board.entries.map((s, i) => {
           const leading = board.leader === s.code;
           return (
             <div
               key={s.code}
               style={{ background: contestantColor(i) }}
-              className={`relative flex flex-col justify-between rounded-[2rem] text-apricot ${dense ? "min-h-[18vh] p-4 md:p-6" : compact ? "min-h-[22vh] p-5 md:p-7" : "min-h-[26vh] p-6 md:p-9"}`}
+              className={`relative flex flex-col justify-between rounded-[2rem] text-apricot ${dense ? "min-h-[18vh] p-4 md:p-6 short:min-h-0 short:p-4" : compact ? "min-h-[22vh] p-5 md:p-7 short:min-h-0 short:p-5" : "min-h-[26vh] p-6 md:p-9 short:min-h-0 short:p-6"}`}
             >
               <div className="flex items-start justify-between">
                 <span className="eyebrow opacity-80">{contestantLabel(i)}</span>
                 {leading && <span className="eyebrow rounded-full bg-apricot px-3 py-1 text-ink">Leading</span>}
               </div>
               <div>
-                <div className={`font-display leading-none tabular ${dense ? "text-4xl md:text-6xl" : compact ? "text-5xl md:text-8xl" : "text-7xl md:text-[9rem]"}`}>
+                <div className={`font-display leading-none tabular ${dense ? "text-4xl md:text-6xl short:text-4xl" : compact ? "text-5xl md:text-8xl short:text-5xl" : "text-7xl md:text-[9rem] short:text-7xl"}`}>
                   {s.votes.toLocaleString("en-US")}
                 </div>
-                <div className={`mt-3 font-display ${dense ? "text-xl md:text-3xl" : "text-3xl md:text-5xl"}`}>{s.code}</div>
-                <div className={`mt-1 opacity-90 ${dense ? "text-sm md:text-lg" : "text-lg md:text-2xl"}`}>{s.name}</div>
+                <div className={`mt-3 font-display ${dense ? "text-xl md:text-3xl short:text-xl" : "text-3xl md:text-5xl short:text-2xl"}`}>{s.code}</div>
+                <div className={`mt-1 opacity-90 ${dense ? "text-sm md:text-lg short:text-sm" : "text-lg md:text-2xl short:text-base"}`}>{s.name}</div>
               </div>
-              <div className="eyebrow mt-4 opacity-80">{s.pct}% of all votes</div>
+              <div className="eyebrow mt-4 opacity-80 short:mt-3">{s.pct}% of all votes</div>
             </div>
           );
         })}
       </section>
 
-      <section className="mt-6 grid gap-4 md:mt-8 md:grid-cols-[1fr_auto] md:items-end">
+      <section className="mt-6 grid gap-4 md:mt-8 md:grid-cols-[1fr_auto] md:items-end short:mt-4">
         <BattleMeter board={board} />
         <div className="text-right">
-          {status.phase !== "ended" && <LeaderLine board={board} className="text-2xl md:text-4xl" />}
+          {status.phase !== "ended" && <LeaderLine board={board} className="text-2xl md:text-4xl short:text-2xl" />}
           <p className="eyebrow mt-1 text-ink-soft">{board.total.toLocaleString("en-US")} votes counted</p>
         </div>
       </section>
 
-      <footer className="eyebrow mt-8 flex flex-col gap-1 text-ink-soft md:flex-row md:justify-between">
+      <footer className="eyebrow mt-8 flex flex-col gap-1 text-ink-soft md:flex-row md:justify-between short:mt-4">
         <p>Vote with every purchase at Rawia Cafe. In-store only.</p>
         <p className="opacity-70">Independent Rawia Cafe campaign. Not affiliated with or endorsed by any contestant.</p>
       </footer>

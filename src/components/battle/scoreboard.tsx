@@ -43,15 +43,17 @@ export function AnimatedNumber({ value, className, durationMs = 700 }: { value: 
 
 /** Segmented share-of-vote bar: one slice per contestant, in display order, with a legend. */
 export function BattleMeter({ board, size = "lg", tone = "light" }: { board: Scoreboard; size?: "sm" | "lg"; tone?: "light" | "dark" }) {
-  const h = size === "lg" ? "h-6 md:h-9" : "h-3";
-  const label = size === "lg" ? "text-lg md:text-2xl" : "text-sm";
+  const h = size === "lg" ? "h-6 md:h-9 short:h-6" : "h-3";
+  const label = size === "lg" ? "text-lg md:text-2xl short:text-lg" : "text-sm";
+  const swatch = size === "lg" ? "h-3.5 w-3.5 md:h-4 md:w-4" : "h-2.5 w-2.5";
   const track = tone === "dark" ? "bg-white/10 ring-white/10" : "bg-ink/10 ring-ink/10";
   const divider = tone === "dark" ? "bg-black/40" : "bg-apricot";
   return (
     <div className="w-full">
-      <div className={`mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 font-display ${label}`}>
+      <div className={`mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 font-display ${label}`}>
         {board.entries.map((e, i) => (
-          <span key={e.code} style={{ color: contestantColor(i, tone) }}>
+          <span key={e.code} className="inline-flex items-center gap-2" style={{ color: contestantColor(i, tone) }}>
+            <span aria-hidden className={`inline-block rounded-full ${swatch}`} style={{ background: contestantColor(i, tone) }} />
             {e.code} {e.pct}%
           </span>
         ))}

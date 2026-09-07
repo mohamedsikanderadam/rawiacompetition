@@ -36,6 +36,6 @@ export function contestantLabel(index: number): string {
 export function cardGridClass(n: number): string {
   if (n <= 2) return "grid-cols-1 md:grid-cols-2";
   if (n === 3) return "grid-cols-1 md:grid-cols-3";
-  if (n === 4) return "grid-cols-2";
+  if (n === 4) return "grid-cols-2 lg:grid-cols-4";
   return "grid-cols-2 md:grid-cols-3";
 }
