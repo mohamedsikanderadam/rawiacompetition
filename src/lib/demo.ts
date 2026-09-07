@@ -72,6 +72,22 @@ export async function resetDemoData(campaign: Campaign, device: Device, now: Dat
   return { a: DEMO_TARGET.a, b: DEMO_TARGET.b };
 }
 
+/** Wipes every vote for the campaign so both sides read 0. Mode is unchanged. */
+export async function resetScores(campaign: Campaign, now: Date = new Date()): Promise<{ removed: number; a: number; b: number }> {
+  return db.transaction(async (tx) => {
+    const deleted = await tx
+      .delete(schema.votes)
+      .where(eq(schema.votes.campaignId, campaign.id))
+      .returning({ university: schema.votes.university, status: schema.votes.status });
+    await tx.update(schema.campaigns).set({ updatedAt: now }).where(eq(schema.campaigns.id, campaign.id));
+    return {
+      removed: deleted.length,
+      a: deleted.filter((v) => v.status === "valid" && v.university === campaign.universityACode).length,
+      b: deleted.filter((v) => v.status === "valid" && v.university === campaign.universityBCode).length,
+    };
+  });
+}
+
 /** Clears all votes for the campaign and switches to live mode (UOS 0 / AUS 0). */
 export async function startLiveCampaign(campaign: Campaign, now: Date = new Date()): Promise<number> {
   return db.transaction(async (tx) => {

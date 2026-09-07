@@ -23,6 +23,9 @@ export type PublicBattleState = {
     endDate: string;
     a: { code: string; name: string };
     b: { code: string; name: string };
+    headline: string;
+    headlineAccent: string;
+    subline: string;
     mode: string;
   };
   status: CampaignStatus;
@@ -42,6 +45,9 @@ export async function buildPublicState(campaign: Campaign, now = new Date()): Pr
       endDate: campaign.endDate,
       a: { code: campaign.universityACode, name: campaign.universityAName },
       b: { code: campaign.universityBCode, name: campaign.universityBName },
+      headline: campaign.headline,
+      headlineAccent: campaign.headlineAccent,
+      subline: campaign.subline,
       mode: campaign.mode,
     },
     status,

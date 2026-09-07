@@ -11,10 +11,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/admin/logi
   const params = await searchParams;
   const next = typeof params.next === "string" ? params.next : "/admin";
   return (
-    <main className="bg-arena flex min-h-screen items-center justify-center px-4 text-cream">
+    <main className="bg-admin flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-black/40 p-8 shadow-2xl">
         <p className="text-xs uppercase tracking-[0.3em] text-cream/50">Rawia Cafe</p>
-        <h1 className="mt-1 font-display text-2xl">University Battle Admin</h1>
+        <h1 className="mt-1 font-display text-2xl">Rawia Battle Admin</h1>
         <LoginForm next={next} />
       </div>
     </main>

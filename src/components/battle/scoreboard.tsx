@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import type { Scoreboard } from "@/lib/battle";
 
+/** Contestant A = Brick Red, contestant B = Dark Coffee (Rawia brand palette). */
 export const SIDE_CLASSES = {
-  a: { text: "text-uos", bg: "bg-uos", deep: "bg-uos-deep", ring: "ring-uos", from: "from-uos", to: "to-uos-deep", shadow: "shadow-uos/40" },
-  b: { text: "text-aus", bg: "bg-aus", deep: "bg-aus-deep", ring: "ring-aus", from: "from-aus", to: "to-aus-deep", shadow: "shadow-aus/40" },
+  a: { text: "text-side-a", bg: "bg-side-a", deep: "bg-side-a-deep", ring: "ring-side-a", from: "from-side-a", to: "to-side-a-deep", shadow: "shadow-side-a/30", hex: "#b63a2b" },
+  b: { text: "text-side-b", bg: "bg-side-b", deep: "bg-side-b-deep", ring: "ring-side-b", from: "from-side-b", to: "to-side-b-deep", shadow: "shadow-side-b/30", hex: "#311f15" },
 } as const;
 
 export type Side = keyof typeof SIDE_CLASSES;
@@ -14,6 +15,19 @@ export function sideOf(board: Scoreboard, code: string | null): Side | null {
   if (code === board.a.code) return "a";
   if (code === board.b.code) return "b";
   return null;
+}
+
+/** Rawia logo lock-up. `tone` picks the dark or light artwork per the brand guide. */
+export function Brand({ tone = "dark", className = "" }: { tone?: "dark" | "light"; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/rawia-logo.svg"
+      alt="Rawia"
+      draggable={false}
+      className={`h-10 w-auto select-none md:h-14 ${tone === "light" ? "invert" : ""} ${className}`}
+    />
+  );
 }
 
 /** Animates from the previous value to the new one. */
@@ -38,67 +52,62 @@ export function AnimatedNumber({ value, className, durationMs = 700 }: { value: 
   return <span className={`tabular ${className ?? ""}`}>{display.toLocaleString("en-US")}</span>;
 }
 
-export function BattleMeter({ board, size = "lg" }: { board: Scoreboard; size?: "sm" | "lg" }) {
-  const h = size === "lg" ? "h-8 md:h-12" : "h-4";
-  const label = size === "lg" ? "text-xl md:text-3xl" : "text-sm";
+/** `tone="dark"` swaps contestant B's Dark Coffee for a tan that stays visible on the admin's dark canvas. */
+export function BattleMeter({ board, size = "lg", tone = "light" }: { board: Scoreboard; size?: "sm" | "lg"; tone?: "light" | "dark" }) {
+  const h = size === "lg" ? "h-6 md:h-9" : "h-3";
+  const label = size === "lg" ? "text-lg md:text-2xl" : "text-sm";
+  const bText = tone === "dark" ? "text-aus" : "text-side-b";
+  const bFill = tone === "dark" ? "bg-aus" : "bg-side-b";
+  const track = tone === "dark" ? "bg-white/10 ring-white/10" : "bg-ink/10 ring-ink/10";
   return (
     <div className="w-full">
-      <div className={`flex items-center justify-between font-display ${label} mb-2`}>
-        <span className="text-uos">
+      <div className={`mb-2 flex items-center justify-between font-display ${label}`}>
+        <span className="text-side-a">
           {board.a.code} {board.a.pct}%
         </span>
-        <span className="text-aus">
+        <span className={bText}>
           {board.b.pct}% {board.b.code}
         </span>
       </div>
-      <div className={`relative ${h} w-full overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10`}>
-        <div
-          className="absolute inset-y-0 left-0 bg-gradient-to-r from-uos-deep to-uos transition-[width] duration-700 ease-out"
-          style={{ width: `${board.a.pct}%` }}
-        />
-        <div
-          className="absolute inset-y-0 right-0 bg-gradient-to-l from-aus-deep to-aus transition-[width] duration-700 ease-out"
-          style={{ width: `${board.b.pct}%` }}
-        />
-        <div
-          className="absolute inset-y-0 w-1 bg-white shadow-[0_0_16px_rgba(255,255,255,0.8)] transition-[left] duration-700 ease-out"
-          style={{ left: `calc(${board.a.pct}% - 2px)` }}
-        />
+      <div className={`relative ${h} w-full overflow-hidden rounded-full ring-1 ${track}`}>
+        <div className="absolute inset-y-0 left-0 bg-side-a transition-[width] duration-700 ease-out" style={{ width: `${board.a.pct}%` }} />
+        <div className={`absolute inset-y-0 right-0 ${bFill} transition-[width] duration-700 ease-out`} style={{ width: `${board.b.pct}%` }} />
+        <div className="absolute inset-y-0 w-1 bg-apricot transition-[left] duration-700 ease-out" style={{ left: `calc(${board.a.pct}% - 2px)` }} />
       </div>
     </div>
   );
 }
 
 export function LeaderLine({ board, className }: { board: Scoreboard; className?: string }) {
-  if (board.total === 0) return <p className={`font-display ${className ?? ""}`}>THE BATTLE BEGINS — NO VOTES YET</p>;
-  if (!board.leader) return <p className={`font-display ${className ?? ""}`}>🤝 DEAD HEAT — ALL TIED AT {board.a.votes}</p>;
+  if (board.total === 0) return <p className={`font-display ${className ?? ""}`}>The battle begins — no votes yet</p>;
+  if (!board.leader) return <p className={`font-display ${className ?? ""}`}>Dead heat — all tied at {board.a.votes}</p>;
   const side = sideOf(board, board.leader);
   return (
     <p className={`font-display ${side ? SIDE_CLASSES[side].text : ""} ${className ?? ""}`}>
-      🔥 {board.leader} LEADS BY {board.lead.toLocaleString("en-US")}
+      {board.leader} leads by {board.lead.toLocaleString("en-US")}
     </p>
   );
 }
 
 export function ScorePair({ board, sizeClass = "text-7xl md:text-9xl" }: { board: Scoreboard; sizeClass?: string }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 md:gap-10 w-full">
+    <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-4 md:gap-10">
       <div className="text-center">
-        <div className="font-display text-3xl md:text-5xl text-uos">{board.a.code}</div>
-        <AnimatedNumber value={board.a.votes} className={`font-display ${sizeClass} leading-none text-cream`} />
+        <div className="eyebrow text-side-a">{board.a.code}</div>
+        <AnimatedNumber value={board.a.votes} className={`font-display ${sizeClass} leading-none text-ink`} />
       </div>
-      <div className="font-display text-4xl md:text-6xl text-gold italic">VS</div>
+      <div className="eyebrow text-ink-soft">vs</div>
       <div className="text-center">
-        <div className="font-display text-3xl md:text-5xl text-aus">{board.b.code}</div>
-        <AnimatedNumber value={board.b.votes} className={`font-display ${sizeClass} leading-none text-cream`} />
+        <div className="eyebrow text-side-b">{board.b.code}</div>
+        <AnimatedNumber value={board.b.votes} className={`font-display ${sizeClass} leading-none text-ink`} />
       </div>
     </div>
   );
 }
 
 export function Confetti({ side }: { side: Side }) {
-  const pieces = Array.from({ length: 60 }, (_, i) => i);
-  const color = side === "a" ? "bg-uos" : "bg-aus";
+  const pieces = Array.from({ length: 48 }, (_, i) => i);
+  const palette = side === "a" ? ["bg-brick", "bg-olive", "bg-coffee"] : ["bg-coffee", "bg-olive", "bg-brick"];
   return (
     <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
       {pieces.map((i) => {
@@ -109,12 +118,12 @@ export function Confetti({ side }: { side: Side }) {
         return (
           <span
             key={i}
-            className={`absolute -top-6 block rounded-sm ${i % 3 === 0 ? "bg-gold" : color} animate-confetti`}
+            className={`absolute -top-6 block ${i % 2 ? "rounded-full" : "rounded-sm"} ${palette[i % 3]} animate-confetti`}
             style={
               {
                 left: `${left}%`,
                 width: size,
-                height: size * 1.6,
+                height: i % 2 ? size : size * 1.6,
                 animationDelay: `${delay}s`,
                 "--dx": `${dx}px`,
                 "--rot": `${540 + (i % 5) * 120}deg`,
@@ -123,6 +132,55 @@ export function Confetti({ side }: { side: Side }) {
           />
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * The fun bit: the Rawia jug tips over and "pours" the contestant colour into a cup,
+ * which fills up while a wave laps at the surface. Then the counted check pops in.
+ */
+export function PourAnimation({ side }: { side: Side }) {
+  const hex = SIDE_CLASSES[side].hex;
+  return (
+    <div className="relative mx-auto h-44 w-56 md:h-52 md:w-64" aria-hidden>
+      {/* Jug */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/rawia-mark.svg"
+        alt=""
+        draggable={false}
+        className="absolute left-1/2 top-0 h-20 w-auto -translate-x-1/2 origin-bottom-left animate-pour md:h-24"
+        style={{ filter: "invert(9%) sepia(20%) saturate(900%) hue-rotate(340deg) brightness(90%)" }}
+      />
+      {/* Drips */}
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="absolute left-1/2 top-14 block h-6 w-3 rounded-full animate-drip md:top-16"
+          style={{ background: hex, marginLeft: -6 + i * 10, animationDelay: `${0.5 + i * 0.18}s`, animationIterationCount: 3 }}
+        />
+      ))}
+      {/* Cup */}
+      <div className="absolute bottom-0 left-1/2 h-20 w-28 -translate-x-1/2 overflow-hidden rounded-b-[2.5rem] rounded-t-md border-4 border-ink bg-white/70 md:h-24 md:w-32">
+        <div className="absolute inset-x-0 bottom-0 h-full animate-fill-up" style={{ animationDelay: "0.7s" }}>
+          <svg className="absolute -top-3 left-0 h-6 w-[200%] animate-wave" viewBox="0 0 200 20" preserveAspectRatio="none">
+            <path d="M0 10 Q 12.5 0 25 10 T 50 10 T 75 10 T 100 10 T 125 10 T 150 10 T 175 10 T 200 10 V 20 H 0 Z" fill={hex} />
+          </svg>
+          <div className="h-full w-full" style={{ background: hex }} />
+        </div>
+      </div>
+      {/* Handle */}
+      <div className="absolute bottom-5 left-1/2 ml-12 h-10 w-7 rounded-r-full border-4 border-l-0 border-ink md:ml-14 md:h-12 md:w-8" />
+      {/* Check */}
+      <div
+        className="absolute right-0 bottom-16 flex h-12 w-12 items-center justify-center rounded-full bg-olive text-apricot shadow-lg animate-check md:bottom-20 md:h-14 md:w-14"
+        style={{ animationDelay: "1.6s" }}
+      >
+        <svg viewBox="0 0 24 24" className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 12.5l4.5 4.5L19 7" />
+        </svg>
+      </div>
     </div>
   );
 }

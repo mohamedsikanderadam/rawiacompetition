@@ -5,7 +5,7 @@ import { getCampaign, getScoreboard } from "@/lib/campaign";
 import { formatYmdLong } from "@/lib/time";
 import { Card, Stat, buttonClass, buttonDangerClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
 import { BattleMeter } from "@/components/battle/scoreboard";
-import { resetDemoDataAction, startLiveCampaignAction } from "../actions";
+import { resetDemoDataAction, resetScoresAction, startLiveCampaignAction } from "../actions";
 
 export default async function AdminOverview() {
   const campaign = await getCampaign();
@@ -49,7 +49,7 @@ export default async function AdminOverview() {
       </div>
 
       <Card title="Battle meter">
-        <BattleMeter board={board} size="sm" />
+        <BattleMeter board={board} size="sm" tone="dark" />
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -110,7 +110,20 @@ export default async function AdminOverview() {
         </Card>
       </div>
 
-      <Card title="Go live">
+      <Card title="Reset scores">
+        <form action={resetScoresAction} className="grid gap-4 md:grid-cols-[1fr_auto_auto] md:items-end">
+          <p className="text-sm text-cream/80">
+            Sets both contestants back to <strong>0 – 0</strong> by deleting every vote for this campaign ({board.total.toLocaleString("en-US")} on record). Export a CSV first if you
+            need the history. The reset is written to the audit log with the removed totals. Type <code>RESET</code> to confirm.
+          </p>
+          <input name="confirm" placeholder="RESET" className={`${inputClass} md:w-40`} autoComplete="off" />
+          <button type="submit" className={buttonDangerClass}>
+            Reset scores to 0 – 0
+          </button>
+        </form>
+      </Card>
+
+      <Card title="Demo / go live">
         <div className="grid gap-6 md:grid-cols-2">
           <div>
             <p className="text-sm text-cream/70">
@@ -120,7 +133,7 @@ export default async function AdminOverview() {
             </p>
             <form action={resetDemoDataAction} className="mt-4">
               <button type="submit" className={buttonGhostClass}>
-                Reset demo data (UOS 327 / AUS 294)
+                Load demo data ({campaign.universityACode} 327 / {campaign.universityBCode} 294)
               </button>
             </form>
           </div>

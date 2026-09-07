@@ -4,7 +4,7 @@ import { buildPublicState } from "@/lib/kiosk";
 import { BattleBoard } from "@/components/battle/battle-board";
 
 export const metadata: Metadata = {
-  title: "Rawia University Battle — Live Score",
+  title: "Rawia Battle — Live Score",
 };
 
 export const dynamic = "force-dynamic";

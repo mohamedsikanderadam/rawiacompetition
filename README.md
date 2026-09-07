@@ -1,8 +1,16 @@
-# Rawia University Battle — UOS vs AUS
+# Rawia Battle — onsite two-way vote kiosk
 
-Onsite kiosk polling app for **Rawia Cafe**. Students buy, tap their university on a Rawia-controlled
-tablet, see a 2–3 second celebration, and the screen resets for the next student. Management gets a
-secure dashboard with every vote as an individual, auditable record.
+Onsite kiosk polling app for **Rawia Cafe**. Customers buy, tap their side on a Rawia-controlled
+tablet, see a 2–3 second celebration (the Rawia jug pours a cup), and the screen resets for the next
+customer. Management gets a secure dashboard with every vote as an individual, auditable record.
+
+First campaign: **UOS vs AUS** (September 2026). Any two contestants work — the names, short codes,
+headline and subline are all editable in **Admin → Settings**, so the same app can run
+*Nissan Patrol vs Land Cruiser* next season.
+
+Styling follows the Rawia brand guide: Light Apricot `#f5f0e8` canvas with a fine grid, Brick Red
+`#b63a2b` / Dark Coffee `#311f15` contestant cards, Dusty Olive `#6e7a3a` accents, Open Sans type and
+the untouched vector logo (`public/rawia-*.svg`).
 
 **FAST. FUN. CONTROLLED. AUDITABLE.**
 
@@ -16,7 +24,7 @@ secure dashboard with every vote as an individual, auditable record.
 | `/admin/votes` | Management | Every vote; filter by university / date / time / device; invalidate or restore. |
 | `/admin/analytics` | Management | By day, by hour, cumulative, by device, daily trend table. |
 | `/admin/devices` | Management | Register kiosks, generate/rotate tokens, deactivate. |
-| `/admin/settings` | Management | Campaign name/dates, universities, score visibility, attract screen, pause/reopen. |
+| `/admin/settings` | Management | Campaign name/dates, the two contestants, headline copy, score visibility, attract screen, pause/reopen. |
 | `/admin/audit` | Management | Immutable log of admin actions. |
 
 API: `POST /api/vote` (kiosk only), `GET /api/kiosk/state` (kiosk only), `POST /api/kiosk/register`,
@@ -56,6 +64,30 @@ matches the default `DATABASE_URL` in `.env.example`.
 | `npm test` | Vitest — pure logic + database integration tests (needs `DATABASE_URL`) |
 | `npm run lint` / `npm run typecheck` | ESLint / `tsc --noEmit` |
 
+## Going live on a rawia.ae subdomain (e.g. `battle.rawia.ae`)
+
+1. **Pick a host** with Node 20 + PostgreSQL. Simplest: Vercel (app) + Neon (Postgres), or Railway /
+   Render which bundle both. A single small instance is plenty for a few kiosks.
+2. **Create the database** and copy its `DATABASE_URL` (use the pooled/SSL URL if offered).
+3. **Set environment variables** on the host: `DATABASE_URL`, `SESSION_SECRET` (`openssl rand -hex 32`),
+   `ADMIN_EMAIL`, `ADMIN_PASSWORD` (≥ 12 chars, a real password manager one), `SEED_DEMO_DATA=false`,
+   `CAMPAIGN_TIMEZONE=Asia/Dubai`.
+4. **Deploy** from the GitHub repo. Build `npm run build`, start `npm start`. Then run once from the
+   host's shell / one-off job: `npm run db:setup` — it creates the tables, the admin user and the first
+   kiosk device and prints its token **once**. Save it.
+5. **DNS**: in the rawia.ae DNS panel add a `CNAME` record `battle` → the hostname your host gives you
+   (e.g. `cname.vercel-dns.com`). Add `battle.rawia.ae` as a custom domain in the host; it issues the
+   HTTPS certificate automatically (usually < 10 min after DNS propagates).
+6. **Configure the campaign**: log in at `https://battle.rawia.ae/admin`, Settings → contestants,
+   headline, dates, score visibility. Devices → add one device per tablet.
+7. **Tablets**: open `https://battle.rawia.ae/vote`, paste the device token, then lock the browser to
+   that page (iPad Guided Access, Android Fully Kiosk / pinned app). Disable sleep.
+8. **Dry run**: tap both sides, confirm the animation only appears after the vote is stored, check
+   `/battle` on a TV/phone, invalidate + restore a vote, export CSVs, then **Reset scores** (type `RESET`)
+   so opening day starts at 0–0.
+9. **Ops**: turn on daily DB backups at the host, keep `/admin/audit` handy, and re-run
+   `npm run db:migrate` after deploying any release that adds a migration.
+
 ## Deploying on Replit
 
 1. Import the repo. Add a **PostgreSQL** database (Replit → Tools → Database) — it provides `DATABASE_URL`.
@@ -75,6 +107,8 @@ Any host with Node 20 + Postgres works the same way (Railway, Render, Fly, a VPS
 2. Admin → **Settings**: confirm dates (1–30 Sep 2026), decide *Show live scores on voting screen*.
 3. Admin → **Overview** → **Start live campaign** (type `GO LIVE`). This deletes demo votes, sets the
    score to 0–0, and writes an audit entry. Until then the sidebar shows a **Demo data** badge.
+   **Reset scores** (type `RESET`) does the same for a live campaign at any time — every vote for the
+   campaign is deleted and the removed totals are written to the audit log, so export a CSV first.
 4. Keep `/vote` open on the tablet; it needs no attention. It re-syncs settings every 15 s, retries
    on network blips, shows a red **OFFLINE** bar when the connection drops and never shows success
    unless the server confirmed the vote was stored.

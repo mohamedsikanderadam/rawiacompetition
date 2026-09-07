@@ -24,6 +24,10 @@ export const campaigns = pgTable("campaigns", {
   universityAName: text("university_a_name").notNull(),
   universityBCode: text("university_b_code").notNull(),
   universityBName: text("university_b_name").notNull(),
+  /** Kiosk copy: "Who runs" / "the campus?" — editable so non-university campaigns read right. */
+  headline: text("headline").notNull().default("Who runs"),
+  headlineAccent: text("headline_accent").notNull().default("the campus?"),
+  subline: text("subline").notNull().default("One tap for your university. The September tally is live."),
   active: boolean("active").notNull().default(true),
   /** Admin "manually reopen" override — accept votes even after end date. */
   reopened: boolean("reopened").notNull().default(false),

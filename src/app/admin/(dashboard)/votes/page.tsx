@@ -80,7 +80,7 @@ export default async function VotesPage({ searchParams }: PageProps<"/admin/vote
       <Card title="Filter">
         <form method="get" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
           <select name="university" defaultValue={university} className={inputClass}>
-            <option value="">All universities</option>
+            <option value="">All contestants</option>
             <option value={campaign.universityACode}>{campaign.universityACode}</option>
             <option value={campaign.universityBCode}>{campaign.universityBCode}</option>
           </select>
@@ -111,7 +111,7 @@ export default async function VotesPage({ searchParams }: PageProps<"/admin/vote
         </form>
       </Card>
 
-      <Table head={["Vote ID", "Date", "Time", "University", "Device", "Status", "Action"]}>
+      <Table head={["Vote ID", "Date", "Time", "Contestant", "Device", "Status", "Action"]}>
         {rows.length === 0 && (
           <tr>
             <td colSpan={7} className="px-4 py-8 text-center text-cream/50">

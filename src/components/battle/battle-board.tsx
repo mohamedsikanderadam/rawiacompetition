@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { PublicBattleState } from "@/lib/kiosk";
-import { BattleMeter, LeaderLine, SIDE_CLASSES, ScorePair, sideOf } from "./scoreboard";
+import { BattleMeter, Brand, LeaderLine, SIDE_CLASSES, sideOf } from "./scoreboard";
 
 const REFRESH_MS = 3000;
 
@@ -34,46 +34,75 @@ export function BattleBoard({ initial }: { initial: PublicBattleState }) {
   }, []);
 
   const { scoreboard: board, status, winner, campaign } = state;
-  const urgencyClass = status.urgency === "normal" ? "text-cream/70" : status.urgency === "final-week" ? "text-gold" : "text-red-400 animate-pulse-slow";
+  const urgencyClass = status.urgency === "normal" ? "text-ink-soft" : status.urgency === "final-week" ? "text-olive" : "text-brick animate-pulse-slow";
   const winnerSide = winner && !("tie" in winner) ? sideOf(board, winner.code) : null;
 
   return (
-    <main className="bg-arena flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-10 text-cream md:gap-12">
-      <header className="text-center">
-        <p className="text-xs uppercase tracking-[0.35em] text-cream/50 md:text-base">Rawia Cafe presents</p>
-        <h1 className="mt-2 font-display text-4xl md:text-7xl">{campaign.name.toUpperCase()}</h1>
-        <p className={`mt-3 font-display text-2xl md:text-4xl ${urgencyClass}`}>{state.countdown}</p>
+    <main className="bg-arena flex min-h-screen flex-col px-5 py-5 text-ink md:px-12 md:py-8">
+      <header className="flex items-start justify-between">
+        <Brand />
+        <div className="eyebrow text-right leading-relaxed text-ink-soft">
+          <div>Live leaderboard</div>
+          <div className={urgencyClass}>{state.countdown}</div>
+          <div className="opacity-70">{stale ? "Reconnecting…" : "Updates every 3s"}</div>
+        </div>
       </header>
 
+      <section className="mt-8 md:mt-12">
+        <p className="eyebrow text-brick">Rawia Cafe presents</p>
+        <h1 className="mt-2 font-display text-5xl leading-[0.95] md:text-8xl">
+          {campaign.headline}
+          <br />
+          <span className="text-brick">{campaign.headlineAccent}</span>
+        </h1>
+      </section>
+
       {status.phase === "ended" && winner && (
-        <div className="text-center animate-pop">
-          <h2 className="font-display text-3xl md:text-6xl">🏆 THE BATTLE IS OVER</h2>
+        <section className="mt-8 rounded-[2rem] bg-ink p-6 text-apricot animate-pop md:p-10">
+          <p className="eyebrow opacity-70">The battle is over</p>
           {"tie" in winner ? (
-            <p className="mt-2 font-display text-2xl md:text-5xl text-gold">THE BATTLE ENDS IN A TIE 🤝</p>
+            <h2 className="mt-2 font-display text-4xl md:text-7xl">It ends in a tie.</h2>
           ) : (
-            <p className={`mt-2 font-display text-2xl md:text-5xl ${winnerSide ? SIDE_CLASSES[winnerSide].text : ""}`}>
-              {winner.name.toUpperCase()} WINS BY {winner.margin.toLocaleString("en-US")} 🔥
-            </p>
+            <h2 className={`mt-2 font-display text-4xl md:text-7xl ${winnerSide === "a" ? "text-brick" : ""}`}>
+              {winner.name} wins by {winner.margin.toLocaleString("en-US")}.
+            </h2>
           )}
-        </div>
+        </section>
       )}
 
-      <section className="w-full max-w-6xl">
-        <ScorePair board={board} sizeClass="text-8xl md:text-[11rem]" />
+      <section className="mt-8 grid flex-1 gap-4 md:mt-12 md:grid-cols-2 md:gap-6">
+        {(["a", "b"] as const).map((side) => {
+          const s = board[side];
+          const c = SIDE_CLASSES[side];
+          const leading = board.leader === s.code;
+          return (
+            <div key={side} className={`relative flex min-h-[26vh] flex-col justify-between rounded-[2rem] ${c.bg} p-6 text-apricot md:p-9`}>
+              <div className="flex items-start justify-between">
+                <span className="eyebrow opacity-80">{side === "a" ? "Contestant 01" : "Contestant 02"}</span>
+                {leading && <span className="eyebrow rounded-full bg-apricot px-3 py-1 text-ink">Leading</span>}
+              </div>
+              <div>
+                <div className="font-display text-7xl leading-none tabular md:text-[9rem]">{s.votes.toLocaleString("en-US")}</div>
+                <div className="mt-3 font-display text-3xl md:text-5xl">{s.code}</div>
+                <div className="mt-1 text-lg opacity-90 md:text-2xl">{s.name}</div>
+              </div>
+              <div className="eyebrow mt-4 opacity-80">{s.pct}% of all votes</div>
+            </div>
+          );
+        })}
       </section>
 
-      <section className="w-full max-w-4xl space-y-4">
-        {status.phase !== "ended" && <LeaderLine board={board} className="text-center text-2xl md:text-4xl" />}
+      <section className="mt-6 grid gap-4 md:mt-8 md:grid-cols-[1fr_auto] md:items-end">
         <BattleMeter board={board} />
-        <p className="text-center text-sm uppercase tracking-widest text-cream/50 md:text-base">
-          {board.total.toLocaleString("en-US")} purchases counted · updates live
-          {stale && " · reconnecting…"}
-        </p>
+        <div className="text-right">
+          {status.phase !== "ended" && <LeaderLine board={board} className="text-2xl md:text-4xl" />}
+          <p className="eyebrow mt-1 text-ink-soft">{board.total.toLocaleString("en-US")} votes counted</p>
+        </div>
       </section>
 
-      <footer className="text-center text-sm text-cream/50 md:text-lg">
-        <p>Vote with every purchase at Rawia Cafe. Voting happens in-store only.</p>
-        <p className="mt-1 text-xs text-cream/40">Independent Rawia Cafe campaign. Not affiliated with or endorsed by either university.</p>
+      <footer className="eyebrow mt-8 flex flex-col gap-1 text-ink-soft md:flex-row md:justify-between">
+        <p>Vote with every purchase at Rawia Cafe. In-store only.</p>
+        <p className="opacity-70">Independent Rawia Cafe campaign. Not affiliated with or endorsed by any contestant.</p>
       </footer>
     </main>
   );

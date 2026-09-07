@@ -24,26 +24,53 @@ export function SettingsForm({ campaign, phase }: { campaign: Campaign; phase: C
         </div>
       </Card>
 
-      <Card title="Competing universities">
+      <Card title="Contestants">
+        <p className="mb-4 text-sm text-cream/70">
+          Any two names work — universities today, <em>Nissan Patrol vs Land Cruiser</em> tomorrow. Short codes appear on the big cards (e.g. <code>UOS</code>,{" "}
+          <code>PATROL</code>); full names appear beneath them.
+        </p>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-3 rounded-xl border border-uos/40 p-4">
-            <Field label="Side A — short code">
+            <p className="text-xs uppercase tracking-widest text-uos">Contestant 01 · Brick Red card</p>
+            <Field label="Short code (max 12)">
               <input name="universityACode" defaultValue={campaign.universityACode} required maxLength={12} className={inputClass} />
             </Field>
-            <Field label="Side A — full name">
+            <Field label="Full name">
               <input name="universityAName" defaultValue={campaign.universityAName} required className={inputClass} />
             </Field>
           </div>
           <div className="space-y-3 rounded-xl border border-aus/40 p-4">
-            <Field label="Side B — short code">
+            <p className="text-xs uppercase tracking-widest text-aus">Contestant 02 · Dark Coffee card</p>
+            <Field label="Short code (max 12)">
               <input name="universityBCode" defaultValue={campaign.universityBCode} required maxLength={12} className={inputClass} />
             </Field>
-            <Field label="Side B — full name">
+            <Field label="Full name">
               <input name="universityBName" defaultValue={campaign.universityBName} required className={inputClass} />
             </Field>
           </div>
         </div>
-        <p className="mt-3 text-xs text-cream/50">Changing a code after voting has started will hide existing votes recorded under the old code.</p>
+        <p className="mt-3 text-xs text-cream/50">
+          Votes are stored under the short code. Changing a code mid-campaign hides votes recorded under the old code — use <strong>Reset scores</strong> on the Overview
+          when switching to a new campaign.
+        </p>
+      </Card>
+
+      <Card title="Kiosk headline">
+        <div className="grid gap-4 md:grid-cols-3">
+          <Field label="Headline (dark)">
+            <input name="headline" defaultValue={campaign.headline} required maxLength={60} className={inputClass} />
+          </Field>
+          <Field label="Headline (red accent)">
+            <input name="headlineAccent" defaultValue={campaign.headlineAccent} required maxLength={60} className={inputClass} />
+          </Field>
+          <Field label="Subline">
+            <input name="subline" defaultValue={campaign.subline} required maxLength={160} className={inputClass} />
+          </Field>
+        </div>
+        <p className="mt-3 text-xs text-cream/50">
+          Shown on /vote and /battle as “<span className="text-cream">{campaign.headline}</span> <span className="text-uos">{campaign.headlineAccent}</span>”. For a car
+          campaign try “Which legend / rules the dunes?”.
+        </p>
       </Card>
 
       <Card title="Kiosk experience">
@@ -52,7 +79,7 @@ export function SettingsForm({ campaign, phase }: { campaign: Campaign; phase: C
             name="showScoresOnVote"
             label="Show live scores on voting screen"
             defaultChecked={campaign.showScoresOnVote}
-            hint="OFF: students only see “Who are you representing?” with no numbers."
+            hint="OFF: voters only see the headline and the two cards, with no numbers."
           />
           <Toggle
             name="showConfirmationScore"
