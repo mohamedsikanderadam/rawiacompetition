@@ -2,7 +2,7 @@ import { getAnalytics, leaderOf } from "@/lib/analytics";
 import { getCampaignStatus, type Totals } from "@/lib/battle";
 import { getCampaign, getScoreboard } from "@/lib/campaign";
 import { Card, Stat, Table } from "@/components/admin/ui";
-import { contestantColor } from "@/components/battle/scoreboard";
+import { contestantColor } from "@/lib/contestants";
 
 export default async function AnalyticsPage() {
   const campaign = await getCampaign();

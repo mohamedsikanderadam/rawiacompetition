@@ -2,7 +2,7 @@ import Link from "next/link";
 import { and, count, desc, eq, gte, lt, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { getCampaign, getContestants } from "@/lib/campaign";
-import { contestantColor } from "@/components/battle/scoreboard";
+import { contestantColor } from "@/lib/contestants";
 import { formatLocalDate, formatLocalTime, localDateKey, localDayEnd, localDayStart } from "@/lib/time";
 import { Card, StatusBadge, Table, UniBadge, buttonDangerClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
 import { invalidateVoteAction, restoreVoteAction } from "../../actions";

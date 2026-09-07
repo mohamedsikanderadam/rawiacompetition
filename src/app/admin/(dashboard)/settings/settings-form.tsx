@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import type { Campaign } from "@/db/schema";
 import { MAX_CONTESTANTS, MIN_CONTESTANTS, type CampaignPhase, type Contestant } from "@/lib/battle";
 import { Card, Field, Toggle, buttonClass, buttonGhostClass, inputClass } from "@/components/admin/ui";
-import { CONTESTANT_COLORS, contestantColor, contestantLabel } from "@/components/battle/scoreboard";
+import { CONTESTANT_COLORS, contestantColor, contestantLabel } from "@/lib/contestants";
 import { saveSettingsAction } from "../../actions";
 
 const COLOR_NAMES = ["Brick Red", "Dark Coffee", "Dusty Olive", "Tan", "Deep Brick", "Pitch Black"] as const;
